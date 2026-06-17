@@ -3,6 +3,7 @@ package mapper;
 import dto.EmployeeRequestDTO;
 import dto.EmployeeResponseDTO;
 import model.Employee;
+import Enum.Role;
 
 import java.time.LocalDate;
 
@@ -13,6 +14,7 @@ public class EmployeeMapper {
         EmployeeDTO.setName(employee.getName());
         EmployeeDTO.setAddress(employee.getAddress());
         EmployeeDTO.setEmail(employee.getEmail());
+        EmployeeDTO.setRole(employee.getRole().toString());
         EmployeeDTO.setDateOfBirth(employee.getDate_of_birth().toString());
 
         return EmployeeDTO;
@@ -24,9 +26,9 @@ public class EmployeeMapper {
         employee.setName(employeeRequestDTO.getName());
         employee.setAddress(employeeRequestDTO.getAddress());
         employee.setEmail(employeeRequestDTO.getEmail());
+        employee.setRole(Role.valueOf(employeeRequestDTO.getRole()));
         employee.setDate_of_birth(LocalDate.parse(employeeRequestDTO.getDateOfBirth()));
 
         return employee;
-
     }
 }

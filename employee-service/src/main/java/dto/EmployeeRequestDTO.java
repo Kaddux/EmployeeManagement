@@ -18,6 +18,12 @@ public class EmployeeRequestDTO {
     @Email(message = "Email should be valid")
     private String email;
 
+    @NotBlank(message = "password is required")
+    private String password;
+
+    @NotBlank(message = "role is required")
+    private String role;
+
     @NotBlank(message = "address is required")
     private String address;
 
