@@ -41,7 +41,7 @@ public class EmployeeService {
         
         return EmployeeMapper.toDTO(savedEmployee);
     }
-    public EmployeeResponseDTO updatePatient(UUID id, EmployeeRequestDTO employeeRequestDTO){
+    public EmployeeResponseDTO updateEmployee(UUID id, EmployeeRequestDTO employeeRequestDTO){
         Employee employee = employeeRepository.findById(id).orElseThrow(() ->
                 new EmployeeNotFoundException("Employee not found"+ id));
         if(employeeRepository.existsByEmailAndIdNot(employeeRequestDTO.getEmail(), id)){

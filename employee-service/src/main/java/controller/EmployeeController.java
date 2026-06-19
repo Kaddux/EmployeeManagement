@@ -11,6 +11,7 @@ import repository.EmployeeRepository;
 import service.EmployeeService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -22,6 +23,7 @@ public class EmployeeController {
         this.employeeService = employeeService;
     }
 
+    //GET method for both EMPLOYEE and ADMIN role
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
     public ResponseEntity<List<EmployeeResponseDTO>> getEmployee(){
@@ -29,6 +31,7 @@ public class EmployeeController {
         return ResponseEntity.ok().body(employee);
     }
 
+    //POST method configured for only ADMIN
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> createEmployee(
@@ -38,6 +41,7 @@ public class EmployeeController {
         return ResponseEntity.ok().body(employeeResponseDTO);
     }
 
+    //DELETE method configured for only ADMIN
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> deleteEmployee(@PathVariable UUID id){
@@ -46,5 +50,13 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
+    //PUT method configured for only ADMIN
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmployeeResponseDTO> putUser(@PathVariable UUID id,
+                                                     @RequestBody Map<String, Object> updates) {
+        EmployeeResponseDTO userResponseDTO = employeeService.updateEmployee(id, (EmployeeRequestDTO) updates);
+        return ResponseEntity.ok().body(userResponseDTO);
+    }
 
 }
