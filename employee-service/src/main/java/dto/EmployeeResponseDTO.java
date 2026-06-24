@@ -15,5 +15,8 @@ public class EmployeeResponseDTO {
     private String role;
     private String dateOfBirth;
     private String address;
+    private String department_id;
+    private String department_code;
+    private String department_name;
 
 }

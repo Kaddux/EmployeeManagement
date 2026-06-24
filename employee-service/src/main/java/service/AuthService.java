@@ -24,6 +24,7 @@ public class AuthService {
     public Optional<String> authenticate(LoginRequestDTO loginRequestDTO){
         return employeeRepository.findByEmail(loginRequestDTO.getEmail())
                 .filter(e -> passwordEncoder.matches(loginRequestDTO.getPassword(), e.getPassword()))
+                .filter(Employee::isEnabled)
                 .map(e -> jwtUtil.generateToken(e.getEmail(), String.valueOf(e.getRole())));
     }
 

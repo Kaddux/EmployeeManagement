@@ -18,8 +18,9 @@ public class Family {
     @Column
     private String number_of_members;
 
-    @Column
-    private UUID employee_id;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
     @Column
     private String father_name;

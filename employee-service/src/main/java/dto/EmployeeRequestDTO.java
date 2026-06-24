@@ -2,6 +2,7 @@ package dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,6 +24,12 @@ public class EmployeeRequestDTO {
 
     @NotBlank(message = "role is required")
     private String role;
+
+    @NotBlank(message = "department is required")
+    private String department_id;
+
+    @NotNull
+    private boolean enabled;
 
     @NotBlank(message = "address is required")
     private String address;

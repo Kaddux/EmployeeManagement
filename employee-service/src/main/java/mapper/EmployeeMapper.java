@@ -14,6 +14,11 @@ public class EmployeeMapper {
         EmployeeDTO.setName(employee.getName());
         EmployeeDTO.setAddress(employee.getAddress());
         EmployeeDTO.setEmail(employee.getEmail());
+        if (employee.getDepartment() != null) {
+            EmployeeDTO.setDepartment_id(employee.getDepartment().getDepartment_id().toString());
+            EmployeeDTO.setDepartment_name(employee.getDepartment().getDepartment_name());
+            EmployeeDTO.setDepartment_code(employee.getDepartment().getDepartment_code());
+        }
         EmployeeDTO.setRole(employee.getRole().toString());
         EmployeeDTO.setDateOfBirth(employee.getDate_of_birth().toString());
 
@@ -27,6 +32,7 @@ public class EmployeeMapper {
         employee.setAddress(employeeRequestDTO.getAddress());
         employee.setEmail(employeeRequestDTO.getEmail());
         employee.setRole(Role.valueOf(employeeRequestDTO.getRole()));
+        // Department setting is handled in the service layer where DB access is available
         employee.setDate_of_birth(LocalDate.parse(employeeRequestDTO.getDateOfBirth()));
 
         return employee;

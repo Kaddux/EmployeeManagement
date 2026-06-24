@@ -31,4 +31,25 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest().body(errors);
     }
+
+    @ExceptionHandler(DepartmentAlreadyExistsException.class)
+    public ResponseEntity<Map<String,String>> handleDepartmentAlreadyExistsException(DepartmentAlreadyExistsException ex){
+        log.warn("Department Already exists");
+
+        Map<String,String> error = new HashMap<>();
+        error.put("message","This Department Already Exists");
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(DepartmentNotFoundException.class)
+    public ResponseEntity<Map<String,String>> handleDepartmentNotFoundException(DepartmentNotFoundException ex) {
+        log.warn("Department Not Found");
+
+        Map<String, String> error = new HashMap<>();
+
+        error.put("message", "Department Not found");
+
+        return ResponseEntity.badRequest().body(error);
+    }
 }
