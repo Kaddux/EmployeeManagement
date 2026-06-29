@@ -1,4 +1,6 @@
-DROP TABLE IF EXISTS employee;
+DROP TABLE IF EXISTS family;
+DROP TABLE IF EXISTS employee CASCADE;
+DROP TABLE IF EXISTS department CASCADE;
 
 CREATE TABLE employee
 (
@@ -11,63 +13,72 @@ CREATE TABLE employee
     date_of_birth DATE                NOT NULL
 );
 
--- Admin Users
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-VALUES ('123e4567-e89b-12d3-a456-426614174000', 'John Doe', 'john.doe@example.com', 'ROLE_ADMIN', '$2a$12$R9h/cIPz0gi.URNNX3kh2OPST9/zBkqquzaG.yZ.2S4S0Z5kZ0fS6', '123 Main St, Springfield', '1985-06-15');
+CREATE TABLE family
+(
+    family_id         UUID PRIMARY KEY,
+    employee_id       UUID NOT NULL,
+    father_name       VARCHAR(255),
+    mother_name       VARCHAR(255),
+    number_of_members VARCHAR(255),
+    CONSTRAINT fk_family_employee FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-VALUES ('123e4567-e89b-12d3-a456-426614174001', 'Jane Smith', 'jane.smith@example.com', 'ROLE_ADMIN', '$2a$12$KkQ1y05.j9y.1E.f.J/uQ.jN9z7fJ91y29.f.J/uQ.jN9z7fJ91y2', '456 Elm St, Shelbyville', '1990-09-23');
+CREATE TABLE department (
+                            department_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                            department_name VARCHAR(100) NOT NULL,
+                            department_code VARCHAR(10) NOT NULL,
 
--- Employee Users
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-VALUES ('123e4567-e89b-12d3-a456-426614174003', 'Bob Brown', 'bob.brown@example.com', 'ROLE_EMPLOYEE', '$2a$12$XyG1h90.m8n.2D.g.K/vR.kN0a8gK02z30.g.K/vR.kN0a8gK02z3', '321 Pine St, Springfield', '1982-11-30');
--- ... (and so on for other employees)
+    -- Ensures department codes are unique and index-optimized
+                            CONSTRAINT uq_department_code UNIQUE (department_code)
+);
 
--- Employee Users
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '123e4567-e89b-12d3-a456-426614174003', 'Bob Brown', 'bob.brown@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_03', '321 Pine St, Springfield', '1982-11-30'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '123e4567-e89b-12d3-a456-426614174003');
+-- Step A: Add the new column
+ALTER TABLE employee
+    ADD COLUMN department_id INT;
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '123e4567-e89b-12d3-a456-426614174004', 'Emily Davis', 'emily.davis@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_04', '654 Maple St, Shelbyville', '1995-02-05'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '123e4567-e89b-12d3-a456-426614174004');
+-- Step B: Add the Foreign Key constraint
+ALTER TABLE employee
+    ADD CONSTRAINT fk_employee_department
+        FOREIGN KEY (department_id)
+            REFERENCES department (department_id)
+            ON DELETE SET NULL;
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174005', 'Michael Green', 'michael.green@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_05', '987 Cedar St, Springfield', '1988-07-25'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174005');
+INSERT INTO department (department_name, department_code) VALUES
+                                                              ('Engineering', 'ENG-01'),
+                                                              ('Human Resources', 'HR-02'),
+                                                              ('Finance', 'FIN-03'),
+                                                              ('Marketing', 'MKT-04'),
+                                                              ('Operations', 'OPS-05');
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174006', 'Sarah Taylor', 'sarah.taylor@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_06', '123 Birch St, Shelbyville', '1992-04-18'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174006');
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174007', 'David Wilson', 'david.wilson@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_07', '456 Ash St, Capital City', '1975-01-11'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174007');
+CREATE INDEX idx_family_employee_id ON family(employee_id);
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174008', 'Laura White', 'laura.white@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_08', '789 Palm St, Springfield', '1989-09-02'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174008');
+INSERT INTO employee (id, name, email, role, password, address, date_of_birth, department_id) VALUES
+    ('123e4567-e89b-12d3-a456-426614174000', 'John Doe',       'john.doe@example.com',       'ROLE_ADMIN',    '$2a$10$7QzQ1Q1Q1Q1Q1Q1Q1Q1QOuSomeDummyHashForJohnDoe11111111111', '123 Main St',   '1985-06-15', 1),
+    ('123e4567-e89b-12d3-a456-426614174001', 'Jane Smith',     'jane.smith@example.com',     'ROLE_ADMIN',    '$2a$10$7QzQ1Q1Q1Q1Q1Q1Q1Q1QOuSomeDummyHashForJaneSmi1111111111', '456 Elm St',    '1990-09-23', 2),
+    ('123e4567-e89b-12d3-a456-426614174003', 'Bob Brown',      'bob.brown@example.com',      'ROLE_EMPLOYEE', '$2a$10$7QzQ1Q1Q1Q1Q1Q1Q1Q1QOuSomeDummyHashForBobBrown1111111111', '321 Pine St',   '1982-11-30', 3),
+    ('123e4567-e89b-12d3-a456-426614174004', 'Emily Davis',    'emily.davis@example.com',    'ROLE_EMPLOYEE', '$2a$10$7QzQ1Q1Q1Q1Q1Q1Q1Q1QOuSomeDummyHashForEmilyDav111111111', '654 Maple St',  '1995-02-05', 4),
+    ('223e4567-e89b-12d3-a456-426614174005', 'Michael Green',  'michael.green@example.com',  'ROLE_EMPLOYEE', '$2a$10$7QzQ1Q1Q1Q1Q1Q1Q1Q1QOuSomeDummyHashForMichaelG111111111', '987 Cedar St',  '1988-07-25', 5);
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174009', 'James Harris', 'james.harris@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_09', '321 Cherry St, Shelbyville', '1993-11-15'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174009');
+ALTER TABLE employee ADD COLUMN enabled BOOLEAN DEFAULT true;
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174010', 'Emma Moore', 'emma.moore@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_10', '654 Spruce St, Capital City', '1980-08-09'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174010');
+CREATE TABLE IF NOT EXISTS verification_tokens (
+                                                   id BIGSERIAL PRIMARY KEY,
+                                                   token VARCHAR(255) NOT NULL UNIQUE,
+                                                   employee_id UUID NOT NULL,
+                                                   expiry_date TIMESTAMP NOT NULL,
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174011', 'Ethan Martinez', 'ethan.martinez@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_11', '987 Redwood St, Springfield', '1984-05-03'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174011');
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174012', 'Sophia Clark', 'sophia.clark@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_12', '123 Hickory St, Shelbyville', '1991-12-25'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174012');
+    -- Foreign key constraint: If a user is deleted, automatically delete their tokens
+                                                   CONSTRAINT fk_verification_tokens_user
+                                                       FOREIGN KEY (employee_id)
+                                                           REFERENCES employee(id)
+                                                           ON DELETE CASCADE
+);
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174013', 'Daniel Lewis', 'daniel.lewis@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_13', '456 Cypress St, Capital City', '1976-06-08'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174013');
+-- Index for high-performance lookups when users click the verification link
+CREATE INDEX IF NOT EXISTS idx_verification_tokens_token ON verification_tokens(token);
 
-INSERT INTO employee (id, name, email, role, password, address, date_of_birth)
-SELECT '223e4567-e89b-12d3-a456-426614174014', 'Isabella Walker', 'isabella.walker@example.com', 'ROLE_EMPLOYEE', 'hashed_pass_14', '789 Willow St, Springfield', '1987-10-17'
-WHERE NOT EXISTS (SELECT 1 FROM employee WHERE id = '223e4567-e89b-12d3-a456-426614174014');
+ALTER TABLE  verification_tokens ADD COLUMN warningSent BOOLEAN default false;
+
+ALTER TABLE verification_tokens DROP COLUMN warningSent;
