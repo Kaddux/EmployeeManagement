@@ -37,6 +37,7 @@ public class AccountCleanupScheduler {
 
         List<ExpiredTokenProjection> targets = verificationTokenRepository.findExpiredTokensForWarning(now);
 
+
         if (!targets.isEmpty()) {
             // 2. Execute ONE single SQL command to update all matching records in the DB
             LocalDateTime freshExpiry = LocalDateTime.now().plusSeconds(30);
@@ -55,11 +56,8 @@ public class AccountCleanupScheduler {
 
                 applicationEventPublisher.publishEvent(new EmployeeDeactivationEvent(this, target, newJavaToken));
             }
-
-            int deletedCount = employeeRepository.bulkPurgeExpiredAccounts(now);
-            if (deletedCount > 0) {
-                log.warn("Bulk purged {} dead unverified accounts from the system.", deletedCount);
             }
+        Integer deleted = verificationTokenRepository.deleteVerificationTokens(now);
+        log.info("Total tokens deleted from database {}",deleted);
         }
     }
-}
