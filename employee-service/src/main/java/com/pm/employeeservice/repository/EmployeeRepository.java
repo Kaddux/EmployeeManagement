@@ -8,18 +8,20 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee,UUID> {
-    boolean existsByEmail(String email);
+    boolean existsByEmail(String email, boolean enabled);
 
     boolean existsByEmailAndIdNot(String email, UUID id);
 
-    Optional<Employee> findByName(String name);
 
     Optional<Employee> findByEmail(String email);
+
+    Employee findEmployeeByEmail(String email);
 
      Optional<Employee> findById(UUID id);
 
@@ -28,4 +30,9 @@ public interface EmployeeRepository extends JpaRepository<Employee,UUID> {
             "(SELECT employee_id FROM verification_tokens WHERE expiry_date < :now AND warning_sent = true)",
             nativeQuery = true)
     int bulkPurgeExpiredAccounts(@Param("now") LocalDateTime now);
+
+    @Query(value = "SELECT * FROM employee ORDER BY name OFFSET :offset LIMIT :limit",
+            nativeQuery = true)
+    List<Employee> findEmployeesPaginated(@Param("offset") int offset,
+                                          @Param("limit") int limit);
 }

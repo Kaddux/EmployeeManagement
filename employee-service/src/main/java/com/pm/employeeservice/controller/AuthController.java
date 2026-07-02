@@ -53,7 +53,7 @@ public class AuthController {
                 : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-    @GetMapping("/verify")
+    @GetMapping("/activate")
     @Transactional
     public ResponseEntity<String> verifyEmployeeEmail(@RequestParam("token") String token) {
         Optional<verification_tokens> tokenOpt = verificationTokenRepository.findByToken(token);

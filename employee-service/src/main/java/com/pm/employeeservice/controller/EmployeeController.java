@@ -2,6 +2,7 @@ package com.pm.employeeservice.controller;
 
 
 import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
+import com.pm.employeeservice.Exceptions.PagesExhaustedException;
 import com.pm.employeeservice.dto.AdminOnlyDTO;
 import com.pm.employeeservice.dto.EmployeeRequestDTO;
 import com.pm.employeeservice.dto.EmployeeResponseDTO;
@@ -50,12 +51,18 @@ public class EmployeeController {
 
     //SEND EMAIL TO NEW USERS
     //---------------------------------------------------TO-DO----------------------------------------------------------
-    //GET method for both EMPLOYEE and ADMIN role
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
-    public ResponseEntity<List<EmployeeResponseDTO>> getEmployee(){
-        List<EmployeeResponseDTO> employee = employeeService.getUsers();
-        return ResponseEntity.ok().body(employee);
+    public ResponseEntity<com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO>> getEmployee(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ){
+        if(size <= 0)
+            return ResponseEntity.badRequest().build();
+        com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO> employeePage =
+                employeeService.getUsers(page, size);
+
+        return ResponseEntity.ok().body(employeePage);
     }
 
     //POST method configured for only ADMIN
@@ -66,6 +73,13 @@ public class EmployeeController {
         EmployeeResponseDTO employeeResponseDTO = employeeService.createUser(employeeRequestDTO);
 
         return ResponseEntity.ok().body(employeeResponseDTO);
+    }
+    @PostMapping("/resend-activation")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> resendActivationEmail(@RequestParam String email){
+        String activationResponse = employeeService.resendActivationMail(email);
+
+        return ResponseEntity.ok().body(activationResponse);
     }
 
     //DELETE method configured for only ADMIN
