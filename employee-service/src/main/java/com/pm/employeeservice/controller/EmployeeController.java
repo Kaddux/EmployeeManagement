@@ -2,7 +2,6 @@ package com.pm.employeeservice.controller;
 
 
 import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
-import com.pm.employeeservice.Exceptions.PagesExhaustedException;
 import com.pm.employeeservice.dto.AdminOnlyDTO;
 import com.pm.employeeservice.dto.EmployeeRequestDTO;
 import com.pm.employeeservice.dto.EmployeeResponseDTO;
@@ -19,12 +18,9 @@ import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.service.EmployeeService;
 
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
-import static com.pm.employeeservice.Enum.Role.ROLE_ADMIN;
 
 @Slf4j
 @RestController
@@ -57,8 +53,6 @@ public class EmployeeController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ){
-        if(size <= 0)
-            return ResponseEntity.badRequest().build();
         com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO> employeePage =
                 employeeService.getUsers(page, size);
 
@@ -76,8 +70,9 @@ public class EmployeeController {
     }
     @PostMapping("/resend-activation")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> resendActivationEmail(@RequestParam String email){
-        String activationResponse = employeeService.resendActivationMail(email);
+    public ResponseEntity<EmployeeResponseDTO> resendActivationEmail(@RequestBody Map<String, String> payload){
+        String email = payload.get("email");
+        EmployeeResponseDTO activationResponse = employeeService.resendActivationMail(email);
 
         return ResponseEntity.ok().body(activationResponse);
     }

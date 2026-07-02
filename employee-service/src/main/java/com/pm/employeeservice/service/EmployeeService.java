@@ -5,15 +5,17 @@ import com.pm.employeeservice.Enum.Role;
 import com.pm.employeeservice.Exceptions.EmailAlreadyExistsException;
 import com.pm.employeeservice.Exceptions.EmployeeNotFoundException;
 import com.pm.employeeservice.Exceptions.InvalidRoleException;
-import com.pm.employeeservice.dto.AdminOnlyDTO;
-import com.pm.employeeservice.dto.EmployeeRequestDTO;
-import com.pm.employeeservice.dto.EmployeeResponseDTO;
+import com.pm.employeeservice.Exceptions.PagesExhaustedException;
+import com.pm.employeeservice.dto.*;
+import com.pm.employeeservice.mail.CreateActivationEvent;
 import com.pm.employeeservice.mail.CreateRegistrationEvent;
+import com.pm.employeeservice.mail.LimitEmailVerificationRequests;
 import com.pm.employeeservice.mapper.EmployeeMapper;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.model.Employee;
 import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.repository.EmployeeRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,27 +24,66 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final DepartmentRepository departmentRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final LimitEmailVerificationRequests limitEmailVerificationRequests;
 
-    public EmployeeService(ApplicationEventPublisher applicationEventPublisher, EmployeeRepository employeeRepository, PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository) {
+    public EmployeeService(ApplicationEventPublisher applicationEventPublisher, EmployeeRepository employeeRepository,
+                           PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository, LimitEmailVerificationRequests limitEmailVerificationRequests) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.departmentRepository = departmentRepository;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.limitEmailVerificationRequests = limitEmailVerificationRequests;
     }
 
-    public List<EmployeeResponseDTO> getUsers() {
-        List<Employee> employees = employeeRepository.findAll();
-        return employees.stream().map(EmployeeMapper::toDTO).toList();
+    public EmployeePageResponseDTO<EmployeeResponseDTO> getUsers(int page, int size) {
+        int offset = page*size;
+        List<Employee> employees = employeeRepository.findEmployeesPaginated(offset,size);
+        long totalElements = employeeRepository.count();
+
+        List<EmployeeResponseDTO> response = employees.stream().map(EmployeeMapper::toDTO).toList();
+
+        PageMetaResponse pageMetaResponse = new PageMetaResponse();
+        pageMetaResponse.setTotalPages((int) Math.ceil((double) totalElements/size));
+        pageMetaResponse.setPagesLeft((int) Math.max(0, Math.ceil((double) totalElements/size) - page - 1));
+
+        if(pageMetaResponse.getPagesLeft() <= 0 || size <= 0)
+            throw new PagesExhaustedException("That page does not Exist");
+
+        EmployeePageResponseDTO<EmployeeResponseDTO> employeePageResponseDTO = new EmployeePageResponseDTO<>();
+        employeePageResponseDTO.setEmployeedata(response);
+        employeePageResponseDTO.setPageMetaResponse(pageMetaResponse);
+
+        return employeePageResponseDTO;
+    }
+    public EmployeeResponseDTO resendActivationMail(String email){
+        Employee employee = employeeRepository.findEmployeeByEmail(email);
+
+      if(employee == null)
+          throw new  EmployeeNotFoundException("Employee Not Found");
+
+      if(employee.isEnabled())
+          throw new IllegalArgumentException("Employee already enabled");
+
+      limitEmailVerificationRequests.limitEmailVerificationRequested(employee);
+
+        try {
+            applicationEventPublisher.publishEvent(new CreateActivationEvent(this, email, employee));
+            return EmployeeMapper.toDTO(employee);
+        } catch (Exception e) {
+            log.warn("Error in sending activation mail {}",e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 
     public EmployeeResponseDTO createUser(EmployeeRequestDTO employeeRequestDTO) {
-        if (employeeRepository.existsByEmail(employeeRequestDTO.getEmail()))
+        if (employeeRepository.existsByEmail(employeeRequestDTO.getEmail(), employeeRequestDTO.isEnabled()))
             throw new EmailAlreadyExistsException("User with this email already exists" + employeeRequestDTO.getEmail());
 
         Employee newEmployee = EmployeeMapper.toModel(employeeRequestDTO);
@@ -54,6 +95,8 @@ public class EmployeeService {
         newEmployee.setPassword(passwordEncoder.encode(employeeRequestDTO.getPassword()));
         newEmployee.setEnabled(false);
         Employee savedEmployee = employeeRepository.save(newEmployee);
+
+        limitEmailVerificationRequests.limitEmailVerificationRequested(newEmployee);
 
         applicationEventPublisher.publishEvent(new CreateRegistrationEvent(this, savedEmployee.getEmail(), savedEmployee));
 

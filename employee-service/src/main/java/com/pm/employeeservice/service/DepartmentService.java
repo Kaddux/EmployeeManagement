@@ -27,12 +27,12 @@ public class DepartmentService {
         return DepartmentMapper.toDTO(saveDepartment);
     }
 
-    public DepartmentResponseDTO deleteDepartment(Integer department_id){
+    public void deleteDepartment(Integer department_id){
         Department department = departmentRepository.findById(department_id)
                 .orElseThrow(() -> new DepartmentNotFoundException("Department not found"));
 
         departmentRepository.deleteById(department_id);
 
-        return DepartmentMapper.toDTO(department);
+        DepartmentMapper.toDTO(department);
     }
 }

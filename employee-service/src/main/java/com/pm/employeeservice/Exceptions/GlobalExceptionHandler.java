@@ -1,6 +1,7 @@
 package com.pm.employeeservice.Exceptions;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -24,9 +25,9 @@ public class GlobalExceptionHandler {
         ApiErrorResponse response = new ApiErrorResponse(
                 409,
                 "Resource Conflict",
-                "Email already exists"
+                ex.getMessage() != null ? ex.getMessage() : "Email already exists"
         );
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.status(409).body(response);
 
     }
 
@@ -36,10 +37,10 @@ public class GlobalExceptionHandler {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 404,
                 "Resource Not Found",
-                "Employee not found"
+                ex.getMessage() != null ? ex.getMessage() : "Employee not found"
         );
 
-        return ResponseEntity.badRequest().body(apiErrorResponse);
+        return ResponseEntity.status(404).body(apiErrorResponse);
     }
 
     @ExceptionHandler(DepartmentAlreadyExistsException.class)
@@ -47,9 +48,9 @@ public class GlobalExceptionHandler {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 409,
                 "Resource Conflict",
-                "Department Already exists"
+                ex.getMessage() != null ? ex.getMessage() : "Department Already exists"
         );
-        return ResponseEntity.badRequest().body(apiErrorResponse);
+        return ResponseEntity.status(409).body(apiErrorResponse);
     }
 
 
@@ -58,9 +59,9 @@ public class GlobalExceptionHandler {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 404,
                 "Resource Not Found",
-                "Department not found"
+                ex.getMessage() != null ? ex.getMessage() : "Department not found"
         );
-        return ResponseEntity.badRequest().body(apiErrorResponse);
+        return ResponseEntity.status(404).body(apiErrorResponse);
     }
     @ExceptionHandler(InvalidRoleException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidRoleException(InvalidRoleException ex){
@@ -86,10 +87,10 @@ public class GlobalExceptionHandler {
         ApiErrorResponse response = new ApiErrorResponse(
                 403,
                 "Access denied",
-                "You do not have the permission to access this resource."
+                ex.getMessage() != null ? ex.getMessage() : "You do not have the permission to access this resource."
         );
 
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.status(403).body(response);
     }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException ex){
@@ -121,9 +122,17 @@ public class GlobalExceptionHandler {
         ApiErrorResponse response = new ApiErrorResponse(
                 500,
                 "Internal Server Error",
-                "Unexpected Error Occurred"
+                ex.getMessage() != null ? ex.getMessage() : "Unexpected Error Occurred"
+        );
+        return ResponseEntity.status(500).body(response);
+    }
+    @ExceptionHandler(EmailRequestsException.class)
+    public ResponseEntity<ApiErrorResponse> handleEmailRequestsException(Exception e){
+        ApiErrorResponse response = new ApiErrorResponse(
+                429,
+                "Frequent Email Request",
+                "Sending Requests Too Frequently"
         );
         return ResponseEntity.badRequest().body(response);
     }
-
 }

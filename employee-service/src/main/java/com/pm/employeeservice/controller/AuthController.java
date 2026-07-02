@@ -5,7 +5,6 @@ import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.dto.LoginResponseDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import com.pm.employeeservice.mail.EmployeeVerifiedEvent;
 import com.pm.employeeservice.mail.VerificationSuccessEvent;
 import com.pm.employeeservice.model.Employee;
 import com.pm.employeeservice.model.verification_tokens;
@@ -53,7 +52,7 @@ public class AuthController {
                 : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-    @GetMapping("/activate")
+    @GetMapping("/verify")
     @Transactional
     public ResponseEntity<String> verifyEmployeeEmail(@RequestParam("token") String token) {
         Optional<verification_tokens> tokenOpt = verificationTokenRepository.findByToken(token);

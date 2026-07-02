@@ -6,9 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigInteger;
-import java.time.LocalDate;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Getter
@@ -30,6 +29,9 @@ public class verification_tokens {
 
     @Column
     private boolean warning_sent;
+
+    @Column(name = "created_at",nullable = false,updatable = false)
+    private Instant createdAt;
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.expiryDate);
