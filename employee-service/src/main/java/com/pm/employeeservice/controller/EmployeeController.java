@@ -1,13 +1,16 @@
 package com.pm.employeeservice.controller;
 
 
+import com.pm.employeeservice.Excel.EmployeeExcelExporter;
 import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
 import com.pm.employeeservice.dto.AdminOnlyDTO;
 import com.pm.employeeservice.dto.EmployeeRequestDTO;
 import com.pm.employeeservice.dto.EmployeeResponseDTO;
 import com.pm.employeeservice.mapper.EmployeeMapper;
 import com.pm.employeeservice.model.Employee;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,7 +20,9 @@ import com.pm.employeeservice.repository.EmployeeRepository;
 import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.service.EmployeeService;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,23 +35,38 @@ public class EmployeeController {
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmployeeExcelExporter employeeExportEngine;
 
-    public EmployeeController(PasswordEncoder passwordEncoder,EmployeeService employeeService, EmployeeRepository employeeRepository, DepartmentRepository departmentRepository) {
+    public EmployeeController(EmployeeExcelExporter employeeExportEngine, PasswordEncoder passwordEncoder,EmployeeService employeeService, EmployeeRepository employeeRepository, DepartmentRepository departmentRepository) {
         this.employeeService = employeeService;
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
+        this.employeeExportEngine = employeeExportEngine;
     }
 
     //---------------------------------------------------TO-DO----------------------------------------------------------
-    //-> ADMIN HOD's (head of a particular department) -> return details of all employee from his department
-    //
-    //-> employee can access only their data
-    //
-    //-> ADMIN can access all details
-
-    //SEND EMAIL TO NEW USERS
+    //-> Export Employee Data to an Excel file
+    //-> Import Excel Data from an Excel file into Database
+    //-> Send a sort of "Welcome" PDF with directions for a new Employee registration
     //---------------------------------------------------TO-DO----------------------------------------------------------
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void exportToExcel(HttpServletResponse response){
+        // 1. Establish strict headers to prevent browser caching and define attachment behavior
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=employees_export_" + System.currentTimeMillis() + ".xlsx");
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+
+        try{
+            employeeExportEngine.streamExport(response.getOutputStream());
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Streaming export failed due to client disconnect or IO Exception");
+        }
+    }
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
     public ResponseEntity<com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO>> getEmployee(
