@@ -2,15 +2,18 @@ package com.pm.employeeservice.controller;
 
 
 import com.pm.employeeservice.Excel.EmployeeExcelExporter;
+import com.pm.employeeservice.Excel.EmployeeExcelImporter;
 import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
 import com.pm.employeeservice.dto.AdminOnlyDTO;
 import com.pm.employeeservice.dto.EmployeeRequestDTO;
 import com.pm.employeeservice.dto.EmployeeResponseDTO;
 import com.pm.employeeservice.mapper.EmployeeMapper;
 import com.pm.employeeservice.model.Employee;
+import jakarta.mail.Multipart;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,9 +23,11 @@ import com.pm.employeeservice.repository.EmployeeRepository;
 import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.service.EmployeeService;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,13 +41,15 @@ public class EmployeeController {
     private final DepartmentRepository departmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmployeeExcelExporter employeeExportEngine;
+    private final EmployeeExcelImporter employeeImportEngine;
 
-    public EmployeeController(EmployeeExcelExporter employeeExportEngine, PasswordEncoder passwordEncoder,EmployeeService employeeService, EmployeeRepository employeeRepository, DepartmentRepository departmentRepository) {
+    public EmployeeController(EmployeeExcelImporter employeeImportEngine, EmployeeExcelExporter employeeExportEngine, PasswordEncoder passwordEncoder,EmployeeService employeeService, EmployeeRepository employeeRepository, DepartmentRepository departmentRepository) {
         this.employeeService = employeeService;
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.employeeExportEngine = employeeExportEngine;
+        this.employeeImportEngine = employeeImportEngine;
     }
 
     //---------------------------------------------------TO-DO----------------------------------------------------------
@@ -66,6 +73,30 @@ public class EmployeeController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Streaming export failed due to client disconnect or IO Exception");
         }
+    }
+    @PostMapping(value = "import",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String,Object>> importEmployees
+            (@RequestParam("file") MultipartFile file){
+
+        if(file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error","Body cannot be empty"));
+        }
+        String contentType = file.getContentType();
+
+        if(contentType == null || !contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")){
+            return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                    .body(Map.of("error","Invalid file extension. Only valid OOXML .xlsx files allowed"));
+        }
+        UUID jobId = UUID.randomUUID();
+        try {
+            employeeImportEngine.streamImport(file.getInputStream(), jobId);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("jobId", jobId,
+                "status", "PROCESSING",
+                "message", "File execution loop initialized successfully."));
     }
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
