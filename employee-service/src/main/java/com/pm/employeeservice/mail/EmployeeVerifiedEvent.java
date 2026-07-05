@@ -1,5 +1,6 @@
 package com.pm.employeeservice.mail;
 
+import com.pm.employeeservice.Exceptions.EmailRequestsException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,32 +15,28 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class EmployeeVerifiedEvent {
-    private final JavaMailSender mailSender;
+    private MailSenderBody mailSenderBody;
+    private final JavaMailSender javaMailSender;
 
     @Async
     @EventListener
     public void handleEmployeeVerifiedEvent(VerificationSuccessEvent event){
-        Employee employee = event.getEmployee();
-
         try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-
-            helper.setFrom("flamesoul90@gmail.com", "Your Company Onboarding");
-            helper.setTo(employee.getEmail());
-            helper.setSubject("Welcome to the Team! 🚀 Account Activated");
+            Employee employee = event.getEmployee();
+            MimeMessage message = javaMailSender.createMimeMessage();
 
             String htmlContent = "<h2>Account Activated!</h2>" +
                     "<p>Hi " + employee.getUsername() + ",</p>" +
                     "<p>Your email has been verified successfully. Your account is now fully active.</p>" +
                     "<p>Best regards,<br>The Team</p>";
 
-            helper.setText(htmlContent, true);
-            mailSender.send(mimeMessage);
-
+            mailSenderBody.mailSenderBody(employee,"Your Account is now Active",htmlContent,message);
             log.info("Email Successfully sent to new Employee {}", employee);
         } catch (Exception e) {
-            log.error("Failed to send welcome email to {}", employee.getEmail(), e);
+            log.warn("Error in sending mail to user {}",event.getEmployee().getEmail());
+            throw new RuntimeException("Failure in sending email");
         }
+
+
     }
 }
