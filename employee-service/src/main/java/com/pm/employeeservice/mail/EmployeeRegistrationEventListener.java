@@ -47,22 +47,3 @@ public class EmployeeRegistrationEventListener {
         }
     }
 
-//        try {
-//            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-//            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-//
-//            helper.setFrom("flamesoul90@gmail.com");
-//            helper.setTo(employee.getEmail());
-//            helper.setSubject("Activate Your Account ✔");
-//
-//            String htmlContent = "<h3>Welcome " + employee.getUsername() + "!</h3>" +
-//                    "<p>Thank you for registering. Please click the link below to activate your account:</p>" +
-//                    "<a href=\"" + verificationUrl + "\" style=\"background-color:#4CAF50;color:white;padding:10px 20px;text-decoration:none;display:inline-block;\">Verify Email</a>" +
-//                    "<p>This link will expire in 30 seconds.</p>";
-//
-//            helper.setText(htmlContent, true); // True flag renders HTML
-//            javaMailSender.send(mimeMessage);
-//
-//            log.info("Verification email sent to: {}", employee.getEmail());
-//        } catch (Exception e) {
-//            log.warn("Error in sending Email to Employee");
