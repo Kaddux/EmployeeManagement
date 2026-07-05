@@ -11,24 +11,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
-//MimeMessage mimeMessage = mailSender.createMimeMessage();
-//            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-//
-//            helper.setFrom("flamesoul90@gmail.com","Your Company Onboarding");
-//            helper.setTo(employee.getEmail());
-//            helper.setSubject("Account Reactivation Mail");
-//
-//            String htmlContent = "<h3>Welcome " + employee.getUsername() + "!</h3>" +
-//                    "<p> Your account for is currently deactivated. " +
-//                    "To regain access, please reactivate your account by clicking the secure link below." +
-//                    "Please click the link below to activate your account:</p>" +
-//                    "<a href=\"" + verificationUrl + "\" style=\"background-color:#4CAF50;color:white;padding:10px 20px;text-decoration:none;display:inline-block;\">Verify Email</a>" +
-//                    "<p>This link will expire in 30 seconds.</p>";
-//
-//            helper.setText(htmlContent, true); // True flag renders HTML
-//            mailSender.send(mimeMessage);
 
 @Getter
 @Setter
