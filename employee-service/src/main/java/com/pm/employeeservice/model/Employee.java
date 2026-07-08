@@ -2,26 +2,23 @@ package com.pm.employeeservice.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import com.pm.employeeservice.Enum.Role;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 @Entity
 @AllArgsConstructor
 @RequiredArgsConstructor
 @Getter
 @Setter
-public class Employee implements UserDetails {
+public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -41,6 +38,7 @@ public class Employee implements UserDetails {
 
     @Column(nullable = false,name = "email")
     @Email
+    @NotNull
     private String email;
 
     @ManyToOne
@@ -57,21 +55,44 @@ public class Employee implements UserDetails {
     private List<Family> familyMembers = new ArrayList<>();
 
     @OneToMany(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<verification_tokens> tokens = new ArrayList<>();
+    private List<verificationTokens> tokens = new ArrayList<>();
 
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+    // Business logic: change role with validation
+    public void changeRole(Role newRole) {
+        if (this.role == newRole) {
+            throw new IllegalStateException("Employee already has role: " + newRole);
+        }
+        this.role = newRole;
     }
 
-    @Override
-    public String getPassword() { return this.password; }
+    // Business logic: activate account
+    public void activate() {
+        if (this.enabled) {
+            throw new IllegalStateException("Account already active");
+        }
+        this.enabled = true;
+    }
 
-    @Override
-    public String getUsername() { return this.name; }
+    // Business logic: update profile (only allowed fields)
+    public void updateProfile(String name, String address, LocalDate dateOfBirth, String email, Department department) {
+        this.name = name;
+        this.address = address;
+        this.date_of_birth = dateOfBirth;
+        this.email = email;
+        this.department = department;
+    }
 
+    // Business logic: assign department
+    public void assignDepartment(Department department) {
+        if (this.department != null && this.department.equals(department)) {
+            throw new IllegalStateException("Already assigned to this department");
+        }
+        this.department = department;
+    }
 
-    @Override public boolean isEnabled() { return this.enabled; }
+    // Business logic: change password (called after verification)
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 
 }
