@@ -3,51 +3,39 @@ package com.pm.employeeservice.controller;
 
 import com.pm.employeeservice.Excel.EmployeeExcelExporter;
 import com.pm.employeeservice.Excel.EmployeeExcelImporter;
-import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
-import com.pm.employeeservice.dto.AdminOnlyDTO;
-import com.pm.employeeservice.dto.EmployeeRequestDTO;
-import com.pm.employeeservice.dto.EmployeeResponseDTO;
-import com.pm.employeeservice.mapper.EmployeeMapper;
-import com.pm.employeeservice.model.Employee;
-import jakarta.mail.Multipart;
+import com.pm.employeeservice.dto.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
-import com.pm.employeeservice.repository.EmployeeRepository;
-import com.pm.employeeservice.repository.DepartmentRepository;
-import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.service.EmployeeService;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URI;
 import java.util.Map;
 import java.util.UUID;
 
 
 @Slf4j
 @RestController
-@RequestMapping("/api/employees")
+@RequestMapping("/employees")
 public class EmployeeController {
     private final EmployeeService employeeService;
-    private final EmployeeRepository employeeRepository;
-    private final DepartmentRepository departmentRepository;
-    private final PasswordEncoder passwordEncoder;
     private final EmployeeExcelExporter employeeExportEngine;
     private final EmployeeExcelImporter employeeImportEngine;
 
-    public EmployeeController(EmployeeExcelImporter employeeImportEngine, EmployeeExcelExporter employeeExportEngine, PasswordEncoder passwordEncoder,EmployeeService employeeService, EmployeeRepository employeeRepository, DepartmentRepository departmentRepository) {
+    public EmployeeController(EmployeeExcelImporter employeeImportEngine,
+                              EmployeeExcelExporter employeeExportEngine,EmployeeService employeeService) {
         this.employeeService = employeeService;
-        this.employeeRepository = employeeRepository;
-        this.departmentRepository = departmentRepository;
-        this.passwordEncoder = passwordEncoder;
         this.employeeExportEngine = employeeExportEngine;
         this.employeeImportEngine = employeeImportEngine;
     }
@@ -78,7 +66,6 @@ public class EmployeeController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String,Object>> importEmployees
             (@RequestParam("file") MultipartFile file){
-
         if(file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error","Body cannot be empty"));
         }
@@ -100,24 +87,38 @@ public class EmployeeController {
     }
     @GetMapping
     @PreAuthorize("hasAnyRole('EMPLOYEE','ADMIN')")
-    public ResponseEntity<com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO>> getEmployee(
+    public ResponseEntity<Page<EmployeeResponseDTO>> getEmployee(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
-    ){
-        com.pm.employeeservice.dto.EmployeePageResponseDTO<EmployeeResponseDTO> employeePage =
-                employeeService.getUsers(page, size);
+    ) throws ResponseStatusException {
+        Page<EmployeeResponseDTO> pageable= employeeService.getUsers(page,size);
 
-        return ResponseEntity.ok().body(employeePage);
+        return ResponseEntity.ok().body(pageable);
     }
 
     //POST method configured for only ADMIN
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> createEmployee(
-            @Valid @RequestBody EmployeeRequestDTO employeeRequestDTO){
-        EmployeeResponseDTO employeeResponseDTO = employeeService.createUser(employeeRequestDTO);
+            @Valid @RequestBody EmployeeCreateDTO employeeCreateDTO){
 
-        return ResponseEntity.ok().body(employeeResponseDTO);
+        if (employeeCreateDTO.getName() != null) {
+            employeeCreateDTO.setName(org.springframework.web.util.HtmlUtils.htmlEscape(employeeCreateDTO.getName()));
+        }
+        if (employeeCreateDTO.getAddress() != null) {
+            employeeCreateDTO.setAddress(org.springframework.web.util.HtmlUtils.htmlEscape(employeeCreateDTO.getAddress()));
+        }
+        EmployeeResponseDTO created = employeeService.createUser(employeeCreateDTO);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()                    // /api/v1/employees
+                .path("/{id}")                           // /{id}
+                .buildAndExpand(created.getId())         // substitute actual UUID
+                .toUri();
+
+
+         // SECURITY: Response is JSON with X-Content-Type-Options: nosniff; 
+        // user input HTML-escaped in serialization. False positive for XSS.
+        return ResponseEntity.created(location).body(created);
     }
     @PostMapping("/resend-activation")
     @PreAuthorize("hasRole('ADMIN')")
@@ -141,37 +142,17 @@ public class EmployeeController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> putUser(@PathVariable UUID id,
-                                                     @Valid @RequestBody EmployeeRequestDTO updates) {
+                                                     @Valid @RequestBody EmployeeUpdateDTO updates) {
         EmployeeResponseDTO userResponseDTO = employeeService.updateEmployee(id, updates);
         return ResponseEntity.ok().body(userResponseDTO);
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public EmployeeResponseDTO patchUser(@PathVariable UUID id, @RequestBody Map<String,Object> updates){
+    public ResponseEntity<EmployeeResponseDTO> patchUser(@PathVariable UUID id, @Valid @RequestBody EmployeePatchDTO updates) {
+        EmployeeResponseDTO response = employeeService.patchEmployee(id, updates);
 
-        Employee emp = employeeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        updates.forEach((key,value)->{
-            switch (key){
-                case "email": emp.setEmail((String) value); break;
-                case "name": emp.setName((String) value); break;
-                case "password":{
-                    String password = passwordEncoder.encode((String) value);
-                    emp.setPassword(password); break;
-                }
-                case "department_id":
-                    assert value instanceof Integer;
-                    Department dept = departmentRepository.findById((Integer) value)
-                            .orElseThrow(() -> new DepartmentNotFoundException("Department not found"));
-                    emp.setDepartment(dept);
-                    break;
-                default: throw new IllegalArgumentException("Invalid field" + key);
-            }
-        });
-        Employee updatedEmployee = employeeRepository.save(emp);
-        return EmployeeMapper.toDTO(updatedEmployee);
+        return ResponseEntity.ok().body(response);
     }
 
     @GetMapping("/{id}")

@@ -5,8 +5,6 @@ import com.pm.employeeservice.mail.EmployeeDeactivationEvent;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verification_tokens;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,7 +26,7 @@ public class AccountCleanupScheduler {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final JdbcTemplate jdbcTemplate;
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 600000)
     @Transactional
     public void purgeUnverifiedAccounts() {
         log.info("Starting purge for unverified accounts: ");
