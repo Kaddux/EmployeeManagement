@@ -129,13 +129,6 @@ The service starts on `http://localhost:5002`.
    mvn spring-boot:run
    ```
 
-### Seed Credentials
-
-A test admin user is auto-created on first run:
-
-| Email             | Password   | Role         |
-|-------------------|------------|--------------|
-| `admin2@test.com` | `admin123` | `ROLE_ADMIN` |
 
 ## API Endpoints
 
