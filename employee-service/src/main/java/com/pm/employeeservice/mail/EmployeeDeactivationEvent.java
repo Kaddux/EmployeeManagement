@@ -1,7 +1,6 @@
 package com.pm.employeeservice.mail;
 
 import com.pm.employeeservice.dto.ExpiredTokenProjection;
-import com.pm.employeeservice.model.verification_tokens;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 

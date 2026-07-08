@@ -3,12 +3,15 @@ package com.pm.employeeservice.Excel;
 import com.github.pjfanning.xlsx.StreamingReader;
 import com.pm.employeeservice.Exceptions.BatchErrorLogger;
 import com.pm.employeeservice.Exceptions.BatchRowException;
+import com.pm.employeeservice.dto.NewEmployeeInfo;
+import com.pm.employeeservice.mail.ExcelImportEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class EmployeeExcelImporter {
@@ -32,6 +36,7 @@ public class EmployeeExcelImporter {
     private static final int BATCH_SIZE = 200;
     private final PasswordEncoder passwordEncoder;
     private final BatchErrorLogger batchErrorLogger;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -43,9 +48,10 @@ public class EmployeeExcelImporter {
 
         List<MapSqlParameterSource> batchBuffer = new ArrayList<>(BATCH_SIZE);
         List<BatchRowException> errorList = new ArrayList<>();
+        List<NewEmployeeInfo> newlyCreated = new ArrayList<>();
         String defaultHashPassword = passwordEncoder.encode(java.util.UUID.randomUUID().toString().replace("-", ""));
         DataFormatter dataFormatter = new DataFormatter();
-        
+
         try(Workbook workbook = StreamingReader.builder()
                 .rowCacheSize(100)
                 .bufferSize(4096)
@@ -58,12 +64,15 @@ public class EmployeeExcelImporter {
                 if(rowNumber == 1)
                     continue;
                 try {
-                    MapSqlParameterSource rowParams = parseAndValidateRow(row, defaultHashPassword, dataFormatter);
-                    batchBuffer.add(rowParams);
+                    ParsedRow parsed = parseAndValidateRow(row, defaultHashPassword, dataFormatter);
+                    batchBuffer.add(parsed.params());
+                    newlyCreated.add(new NewEmployeeInfo(parsed.employeeId(), parsed.email(), parsed.username()));
+
                     if(batchBuffer.size() >= BATCH_SIZE){
                         self.executeTransactionalBatch(sql, batchBuffer);
-
                         batchBuffer.clear();
+                        publishBatchEvents(newlyCreated, id);
+                        newlyCreated = new ArrayList<>();
                     }
                 } catch (BatchRowException e) {
                     e.setRowNumber(rowNumber);
@@ -82,10 +91,11 @@ public class EmployeeExcelImporter {
             batchJobRowParams.addValue("createdAt", LocalDateTime.now());
 
             self.executeTransactionalBatch(batchJobLog, Collections.singletonList(batchJobRowParams));
-            
+
             if(!batchBuffer.isEmpty()){
                 self.executeTransactionalBatch(sql, batchBuffer);
                 batchBuffer.clear();
+                publishBatchEvents(newlyCreated, id);
             }
             if(!errorList.isEmpty()){
                 batchErrorLogger.handleErrorLogs(id, errorList);
@@ -93,8 +103,8 @@ public class EmployeeExcelImporter {
             }
         }
     }
-    
-    public MapSqlParameterSource parseAndValidateRow(Row row, String defaultPassword, DataFormatter dataFormatter) throws BatchRowException {
+
+    public ParsedRow parseAndValidateRow(Row row, String defaultPassword, DataFormatter dataFormatter) throws BatchRowException {
         MapSqlParameterSource p = new MapSqlParameterSource();
 
         Cell nameCell = row.getCell(0);
@@ -113,17 +123,24 @@ public class EmployeeExcelImporter {
         }
         p.addValue("email", emailVal);
 
-        p.addValue("id", UUID.randomUUID());
-        
+        UUID employeeId = UUID.randomUUID();
+        p.addValue("id", employeeId);
+
         Cell roleCell = row.getCell(2);
-        String roleVal = (roleCell == null) ? "EMPLOYEE" : dataFormatter.formatCellValue(roleCell).toUpperCase().trim();
+        String roleVal = (roleCell == null) ? "ROLE_EMPLOYEE" : dataFormatter.formatCellValue(roleCell).toUpperCase().trim();
         if (roleVal.isBlank()) throw new BatchRowException("ERR_VAL_REQUIRED","Role","NULL","Role is missing");
-        else if(roleVal.equals("ROLE_EMPLOYEE") || roleVal.equals("ROLE_ADMIN"))
+
+        if (!roleVal.startsWith("ROLE_")) {
+            roleVal = "ROLE_" + roleVal;
+        }
+
+        if (!roleVal.equals("ROLE_EMPLOYEE") && !roleVal.equals("ROLE_ADMIN")) {
             throw new BatchRowException("ERR_VAL_FORMAT","Role",roleVal,"The Role format is incorrect");
+        }
         p.addValue("role", roleVal);
-        
+
         p.addValue("password", defaultPassword);
-        
+
         Cell addressCell = row.getCell(3);
         String addressVal = (addressCell == null) ? "NOT DEFINED" : dataFormatter.formatCellValue(addressCell).trim();
         if (addressVal.isBlank()) throw new BatchRowException("ERR_VAL_REQUIRED","Address","NULL","Address is missing");
@@ -151,13 +168,23 @@ public class EmployeeExcelImporter {
 
         p.addValue("enabled", false);
 
-        return p;
+        return new ParsedRow(p, employeeId, emailVal, nameVal);
     }
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     protected void executeTransactionalBatch(String sql, List<MapSqlParameterSource> parameters) {
         namedParameterJdbcTemplate.batchUpdate(sql, parameters.toArray(new MapSqlParameterSource[0]));
-
     }
+
+    private void publishBatchEvents(List<NewEmployeeInfo> batch, UUID jobId) {
+        if (batch.isEmpty()) return;
+        try {
+            eventPublisher.publishEvent(new ExcelImportEvent(this, batch, jobId));
+            log.info("Published import event for {} employees", batch.size());
+        } catch (Exception ex) {
+            log.warn("Failed to publish batch import event: {}", ex.getMessage());
+        }
+    }
+
     public static boolean isInteger(String str) {
         if (str == null || str.isEmpty()) {
             return false;
@@ -169,4 +196,6 @@ public class EmployeeExcelImporter {
             return false;
         }
     }
+
+    public record ParsedRow(MapSqlParameterSource params, UUID employeeId, String email, String username) {}
 }

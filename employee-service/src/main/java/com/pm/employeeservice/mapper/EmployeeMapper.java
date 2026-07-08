@@ -1,8 +1,9 @@
 package com.pm.employeeservice.mapper;
 
 import com.pm.employeeservice.dto.AdminOnlyDTO;
-import com.pm.employeeservice.dto.EmployeeRequestDTO;
+import com.pm.employeeservice.dto.EmployeeCreateDTO;
 import com.pm.employeeservice.dto.EmployeeResponseDTO;
+import com.pm.employeeservice.dto.EmployeeUpdateDTO;
 import com.pm.employeeservice.model.Employee;
 import com.pm.employeeservice.Enum.Role;
 
@@ -26,15 +27,15 @@ public class EmployeeMapper {
         return EmployeeDTO;
     }
 
-    //converting EmployeeRequestDTO to an entity model
-    public static Employee toModel(EmployeeRequestDTO employeeRequestDTO){
+    //converting EmployeeCreateDTO to an entity model
+    public static Employee toModel(EmployeeCreateDTO employeeCreateDTO){
         Employee employee = new Employee();
-        employee.setName(employeeRequestDTO.getName());
-        employee.setAddress(employeeRequestDTO.getAddress());
-        employee.setEmail(employeeRequestDTO.getEmail());
-        employee.setRole(Role.valueOf(employeeRequestDTO.getRole()));
+        employee.setName(employeeCreateDTO.getName());
+        employee.setAddress(employeeCreateDTO.getAddress());
+        employee.setEmail(employeeCreateDTO.getEmail());
+        employee.setRole(Role.valueOf(employeeCreateDTO.getRole()));
         // Department setting is handled in the service layer where DB access is available
-        employee.setDate_of_birth(LocalDate.parse(employeeRequestDTO.getDateOfBirth()));
+        employee.setDate_of_birth(LocalDate.parse(employeeCreateDTO.getDateOfBirth()));
 
         return employee;
     }

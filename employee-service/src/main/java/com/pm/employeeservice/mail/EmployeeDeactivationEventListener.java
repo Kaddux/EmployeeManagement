@@ -1,6 +1,7 @@
 package com.pm.employeeservice.mail;
 
 import com.pm.employeeservice.dto.ExpiredTokenProjection;
+import com.pm.employeeservice.model.EmailFailureLog;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,11 +11,14 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class EmployeeDeactivationEventListener {
     private final JavaMailSender mailSender;
+    private final com.pm.employeeservice.repository.EmailFailureLogRepository emailFailureLogRepository;
 
     @Async
     @EventListener
@@ -42,6 +46,19 @@ public class EmployeeDeactivationEventListener {
             helper.setText(htmlContent, true);
             mailSender.send(mimeMessage);
         } catch (Exception e) {
+            EmailFailureLog emailFailureLog = new EmailFailureLog();
+            emailFailureLog.setEventType("ACTIVATION");
+            emailFailureLog.setFailedAt(LocalDateTime.now());
+            emailFailureLog.setErrorMessage(e.getMessage());
+            emailFailureLog.setEmail(tokenEntity.email());
+            
+            try {
+                emailFailureLogRepository.save(emailFailureLog);
+            } catch (Exception logEx) {
+                log.warn("Failed to log email error to database: {}", logEx.getMessage());
+            }
+
+            log.warn("Failed to send email to recipient {} because {}",tokenEntity.email(),e.getMessage());
             log.warn("Error occurred in sending deletion warning email {}", e.getMessage());
         }
     }

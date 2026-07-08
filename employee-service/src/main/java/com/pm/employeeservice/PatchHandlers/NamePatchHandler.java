@@ -1,0 +1,13 @@
+package com.pm.employeeservice.PatchHandlers;
+
+import com.pm.employeeservice.Interface.PatchHandler;
+import com.pm.employeeservice.model.Employee;
+import org.springframework.stereotype.Component;
+
+@Component("name")
+public class NamePatchHandler implements PatchHandler {
+    @Override
+    public void apply(Employee employee, Object value) {
+        employee.setName((String) value);
+    }
+}

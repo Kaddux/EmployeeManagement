@@ -1,9 +1,11 @@
 package com.pm.employeeservice.Exceptions;
 
+import jakarta.mail.SendFailedException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mail.MailSendException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -18,7 +20,7 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<ApiErrorResponse> handleEmailAlreadyExistsException(EmailAlreadyExistsException ex){
+    public ResponseEntity<ApiErrorResponse> handleEmailAlreadyExistsException(EmailAlreadyExistsException ex) {
 
         log.warn("Email already exists {}", ex.getMessage());
 
@@ -32,7 +34,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(EmployeeNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> handleEmployeeNotFoundException(EmployeeNotFoundException ex){
+    public ResponseEntity<ApiErrorResponse> handleEmployeeNotFoundException(EmployeeNotFoundException ex) {
 
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 404,
@@ -44,7 +46,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DepartmentAlreadyExistsException.class)
-    public ResponseEntity<ApiErrorResponse> handleDepartmentAlreadyExistsException(DepartmentAlreadyExistsException ex){
+    public ResponseEntity<ApiErrorResponse> handleDepartmentAlreadyExistsException(DepartmentAlreadyExistsException ex) {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 409,
                 "Resource Conflict",
@@ -63,8 +65,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(404).body(apiErrorResponse);
     }
+
     @ExceptionHandler(InvalidRoleException.class)
-    public ResponseEntity<ApiErrorResponse> handleInvalidRoleException(InvalidRoleException ex){
+    public ResponseEntity<ApiErrorResponse> handleInvalidRoleException(InvalidRoleException ex) {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 400,
                 "Bad Request",
@@ -72,8 +75,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(apiErrorResponse);
     }
+
     @ExceptionHandler(PagesExhaustedException.class)
-    public ResponseEntity<ApiErrorResponse> handlePagesExhaustedException(PagesExhaustedException ex){
+    public ResponseEntity<ApiErrorResponse> handlePagesExhaustedException(PagesExhaustedException ex) {
         ApiErrorResponse apiErrorResponse = new ApiErrorResponse(
                 400,
                 "Bad Request",
@@ -81,8 +85,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(apiErrorResponse);
     }
+
     @ExceptionHandler(UnauthorizedAccessException.class)
-    public ResponseEntity<ApiErrorResponse> handleUnauthorizedAccessException(UnauthorizedAccessException ex){
+    public ResponseEntity<ApiErrorResponse> handleUnauthorizedAccessException(UnauthorizedAccessException ex) {
 
         ApiErrorResponse response = new ApiErrorResponse(
                 403,
@@ -92,10 +97,11 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(403).body(response);
     }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException ex){
-        Map<String,String> errors = new HashMap<>();
-        for(FieldError fieldError : ex.getBindingResult().getFieldErrors()){
+    public ResponseEntity<ApiErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
 
@@ -108,8 +114,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(apiErrorResponse);
     }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex){
+    public ResponseEntity<ApiErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
         ApiErrorResponse response = new ApiErrorResponse(
                 400,
                 "Bad Request",
@@ -117,8 +124,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(response);
     }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleAllExceptions(Exception ex){
+    public ResponseEntity<ApiErrorResponse> handleAllExceptions(Exception ex) {
         ApiErrorResponse response = new ApiErrorResponse(
                 500,
                 "Internal Server Error",
@@ -126,8 +134,9 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(500).body(response);
     }
+
     @ExceptionHandler(EmailRequestsException.class)
-    public ResponseEntity<ApiErrorResponse> handleEmailRequestsException(Exception e){
+    public ResponseEntity<ApiErrorResponse> handleEmailRequestsException(Exception e) {
         ApiErrorResponse response = new ApiErrorResponse(
                 429,
                 "Frequent Email Request",
@@ -135,5 +144,4 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(response);
     }
-
 }

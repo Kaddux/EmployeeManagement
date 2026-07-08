@@ -1,20 +1,24 @@
 package com.pm.employeeservice.mail;
 
 
+import com.pm.employeeservice.model.EmailFailureLog;
+import com.pm.employeeservice.service.EmailFailureLogService;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verification_tokens;
+import com.pm.employeeservice.model.verificationTokens;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.context.event.EventListener;
-
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.pm.employeeservice.repository.VerificationTokenRepository;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Slf4j
@@ -23,27 +27,54 @@ import java.util.UUID;
 public class EmployeeRegistrationEventListener {
     private final JavaMailSender javaMailSender;
     private final VerificationTokenRepository tokenRepository;
-    private MailSenderBody mailSenderBody;
-    @Async
+    private final MailSenderBody mailSenderBody;
+    private final EmailFailureLogService emailFailureLogService;
+    private final SpringTemplateEngine templateEngine;
+
     @EventListener
     public void handleUserRegistrationEvent(CreateRegistrationEvent event) {
         Employee employee = event.getEmployee();
         String token = UUID.randomUUID().toString();
-        verification_tokens verificationToken = mailSenderBody.verificationBodyMapper(token,event.getEmployee());
+        verificationTokens verificationToken = mailSenderBody.verificationBodyMapper(token,event.getEmployee());
 
         tokenRepository.save(verificationToken);
 
         log.info("Successfully created token for employee {}", employee.getId());
 
-        String verificationUrl = "http://localhost:5002/verify?token=" + token;
-        String htmlContent = "<h3>Welcome " + employee.getUsername() + "!</h3>" +
-                    "<p>Thank you for registering. Please click the link below to activate your account:</p>" +
-                    "<a href=\"" + verificationUrl + "\" style=\"background-color:#4CAF50;color:white;padding:10px 20px;text-decoration:none;display:inline-block;\">Verify Email</a>" +
-                    "<p>This link will expire in 30 seconds.</p>";
+        String htmlContent = getString(token, employee);
         MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-        mailSenderBody.mailSenderBody(employee,"Activate your Account",htmlContent,mimeMessage);
+        
+        try {
+            mailSenderBody.mailSenderBody(employee,"Activate your Account",htmlContent,mimeMessage);
+            log.info("Verification Email sent to {}",employee.getEmail());
+        } catch (Exception ex) {
+            try {
+                tokenRepository.delete(verificationToken);
+            } catch (Exception delEx) {
+                log.warn("Failed to clean up verification token after email failure: {}", delEx.getMessage());
+            }
 
-        log.info("Verification Email sent to {}",employee.getEmail());
+            EmailFailureLog emailFailureLog = new EmailFailureLog();
+            emailFailureLog.setEventType("REGISTRATION");
+            emailFailureLog.setFailedAt(LocalDateTime.now());
+            emailFailureLog.setErrorMessage(ex.getMessage());
+            emailFailureLog.setEmail(event.getEmail());
+            
+            emailFailureLogService.saveLog(emailFailureLog);
+
+            log.warn("Failed to send email to recipient {} because {}",event.getEmail(),ex.getMessage());
+            
+            throw new RuntimeException("Email delivery failed for " + event.getEmail() + ": " + ex.getMessage());
         }
     }
+
+    private @NonNull String getString(String token, Employee employee) {
+
+        String verificationUrl = "http://localhost:5002/verify?token=" + token;
+        Context context = new Context();
+        context.setVariable("name", employee.getName());
+        context.setVariable("verificationUrl", verificationUrl);
+        return templateEngine.process("email-verification", context);
+    }
+}
 
