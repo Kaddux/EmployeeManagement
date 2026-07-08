@@ -2,11 +2,12 @@ package com.pm.employeeservice.service;
 
 
 import com.pm.employeeservice.Enum.Role;
-import com.pm.employeeservice.Exceptions.EmailAlreadyExistsException;
-import com.pm.employeeservice.Exceptions.EmployeeNotFoundException;
-import com.pm.employeeservice.Exceptions.InvalidRoleException;
-import com.pm.employeeservice.Exceptions.PagesExhaustedException;
-import com.pm.employeeservice.dto.*;
+import com.pm.employeeservice.Exceptions.*;
+import com.pm.employeeservice.Interface.PatchHandler;
+import com.pm.employeeservice.dto.EmployeeCreateDTO;
+import com.pm.employeeservice.dto.EmployeePatchDTO;
+import com.pm.employeeservice.dto.EmployeeResponseDTO;
+import com.pm.employeeservice.dto.EmployeeUpdateDTO;
 import com.pm.employeeservice.mail.CreateActivationEvent;
 import com.pm.employeeservice.mail.CreateRegistrationEvent;
 import com.pm.employeeservice.mail.LimitEmailVerificationRequests;
@@ -17,11 +18,20 @@ import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.repository.EmployeeRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -34,33 +44,23 @@ public class EmployeeService {
     private final LimitEmailVerificationRequests limitEmailVerificationRequests;
 
     public EmployeeService(ApplicationEventPublisher applicationEventPublisher, EmployeeRepository employeeRepository,
-                           PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository, LimitEmailVerificationRequests limitEmailVerificationRequests) {
+                           PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository, LimitEmailVerificationRequests limitEmailVerificationRequests, Map<String, PatchHandler> handlers) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.departmentRepository = departmentRepository;
         this.applicationEventPublisher = applicationEventPublisher;
         this.limitEmailVerificationRequests = limitEmailVerificationRequests;
+        this.handlers = handlers;
     }
 
-    public EmployeePageResponseDTO<EmployeeResponseDTO> getUsers(int page, int size) {
-        int offset = page*size;
-        List<Employee> employees = employeeRepository.findEmployeesPaginated(offset,size);
-        long totalElements = employeeRepository.count();
+    public Page<EmployeeResponseDTO> getUsers(int page, int size) throws ResponseStatusException {
+        if(page < 0 || size <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        Pageable pageable = PageRequest.of(page, size);
 
-        List<EmployeeResponseDTO> response = employees.stream().map(EmployeeMapper::toDTO).toList();
 
-        PageMetaResponse pageMetaResponse = new PageMetaResponse();
-        pageMetaResponse.setTotalPages((int) Math.ceil((double) totalElements/size));
-        pageMetaResponse.setPagesLeft((int) Math.max(0, Math.ceil((double) totalElements/size) - page - 1));
+        return employeeRepository.findByEnabledTrue(pageable).map(EmployeeMapper ::toDTO);
 
-        if(pageMetaResponse.getPagesLeft() <= 0 || size <= 0)
-            throw new PagesExhaustedException("That page does not Exist");
-
-        EmployeePageResponseDTO<EmployeeResponseDTO> employeePageResponseDTO = new EmployeePageResponseDTO<>();
-        employeePageResponseDTO.setEmployeedata(response);
-        employeePageResponseDTO.setPageMetaResponse(pageMetaResponse);
-
-        return employeePageResponseDTO;
     }
     public EmployeeResponseDTO resendActivationMail(String email){
         Employee employee = employeeRepository.findEmployeeByEmail(email);
@@ -82,17 +82,18 @@ public class EmployeeService {
         }
     }
 
-    public EmployeeResponseDTO createUser(EmployeeRequestDTO employeeRequestDTO) {
-        if (employeeRepository.existsByEmail(employeeRequestDTO.getEmail(), employeeRequestDTO.isEnabled()))
-            throw new EmailAlreadyExistsException("User with this email already exists" + employeeRequestDTO.getEmail());
+    @Transactional
+    public EmployeeResponseDTO createUser(EmployeeCreateDTO employeeCreateDTO) {
+        if (employeeRepository.existsByEmailAndEnabled(employeeCreateDTO.getEmail(), employeeCreateDTO.isEnabled()))
+            throw new EmailAlreadyExistsException("User with this email already exists" + employeeCreateDTO.getEmail());
 
-        Employee newEmployee = EmployeeMapper.toModel(employeeRequestDTO);
+        Employee newEmployee = EmployeeMapper.toModel(employeeCreateDTO);
 
-        Department dept = departmentRepository.findById(Integer.valueOf(employeeRequestDTO.getDepartment_id()))
+        Department dept = departmentRepository.findById(Integer.valueOf(employeeCreateDTO.getDepartment_id()))
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         newEmployee.setDepartment(dept);
 
-        newEmployee.setPassword(passwordEncoder.encode(employeeRequestDTO.getPassword()));
+        newEmployee.setPassword(passwordEncoder.encode(employeeCreateDTO.getPassword()));
         newEmployee.setEnabled(false);
         Employee savedEmployee = employeeRepository.save(newEmployee);
 
@@ -103,28 +104,29 @@ public class EmployeeService {
         return EmployeeMapper.toDTO(savedEmployee);
     }
 
-    public EmployeeResponseDTO updateEmployee(UUID id, EmployeeRequestDTO employeeRequestDTO) {
+    public EmployeeResponseDTO updateEmployee(UUID id, EmployeeUpdateDTO employeeUpdateDTO) {
         Employee employee = employeeRepository.findById(id).orElseThrow(() ->
                 new EmployeeNotFoundException("Employee not found" + id));
-        if (employeeRepository.existsByEmailAndIdNot(employeeRequestDTO.getEmail(), id)) {
+        if (employeeRepository.existsByEmailAndIdNot(employeeUpdateDTO.getEmail(), id)) {
             throw new EmailAlreadyExistsException
-                    ("An employee with this email already exists" + employeeRequestDTO.getEmail());
+                    ("An employee with this email already exists" + employeeUpdateDTO.getEmail());
         }
-        employee.setName(employeeRequestDTO.getName());
-        employee.setAddress(employeeRequestDTO.getAddress());
-        employee.setRole(employee.getRole());
-        employee.setPassword(employee.getPassword());
 
-        Department dept = departmentRepository.findById(Integer.valueOf(employeeRequestDTO.getDepartment_id()))
+        Department dept = departmentRepository.findById(Integer.valueOf(employeeUpdateDTO.getDepartment_id()))
                 .orElseThrow(() -> new RuntimeException("Department not found"));
-        employee.setDepartment(dept);
-        employee.setDate_of_birth(LocalDate.parse(employeeRequestDTO.getDateOfBirth()));
-        employee.setEmail(employeeRequestDTO.getEmail());
+        employee.updateProfile(
+                employeeUpdateDTO.getName(),
+                employee.getAddress(),
+                LocalDate.parse(employeeUpdateDTO.getDateOfBirth()),
+                employeeUpdateDTO.getEmail(),
+                dept
+        );
 
         Employee updatedEmployee = employeeRepository.save(employee);
         return EmployeeMapper.toDTO(updatedEmployee);
 
     }
+
 
     public void deleteEmployee(UUID id) {
         employeeRepository.deleteById(id);
@@ -137,6 +139,34 @@ public class EmployeeService {
         return EmployeeMapper.toDTO(employee);
 
     }
+    final Map<String, PatchHandler> handlers;
+    public EmployeeResponseDTO patchEmployee(UUID id, EmployeePatchDTO updates) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + id));
+        if(updates.getName() != null)
+            employee.setName((updates.getName()));
+
+        if(updates.getEmail() != null)
+            employee.setEmail(updates.getEmail());
+
+        if(updates.getAddress() != null)
+            employee.setAddress(updates.getAddress());
+
+        if(updates.getPassword() != null)
+            employee.setPassword(passwordEncoder.encode(updates.getPassword()));
+
+        if(updates.getDepartment_id() != null) {
+            Department department = departmentRepository.findById(Integer.valueOf(updates.getDepartment_id()))
+                    .orElseThrow(() -> new DepartmentNotFoundException("Department Not Found"));
+            employee.setDepartment(department);
+        }
+
+        if(updates.getDateOfBirth() != null)
+            employee.setDate_of_birth(LocalDate.parse(updates.getDateOfBirth()));
+
+        Employee updatedEmployee = employeeRepository.save(employee);
+        return EmployeeMapper.toDTO(updatedEmployee);
+    }
     public void updateRole(UUID id, String newRole){
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee Not Found"));
@@ -144,7 +174,7 @@ public class EmployeeService {
         if(!isValidRole(newRole))
             throw new InvalidRoleException("This is an invalid role" + newRole);
 
-        employee.setRole(Role.valueOf(newRole));
+        employee.changeRole(Role.valueOf(newRole));
         employeeRepository.save(employee);
 
     }
