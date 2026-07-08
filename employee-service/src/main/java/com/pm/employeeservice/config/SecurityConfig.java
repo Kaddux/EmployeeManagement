@@ -1,5 +1,6 @@
 package com.pm.employeeservice.config;
 
+
 import com.pm.employeeservice.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -22,18 +23,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/validate", "/verify").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/employees", "/api/employees/**").hasAnyRole("EMPLOYEE", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/employees", "/api/employees/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/employees", "/api/employees/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/employees", "/api/employees/**").hasRole("ADMIN")
+                        .requestMatchers("/login", "/validate", "/verify", "/set-password","/set-password/**",
+                                        "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/employees", "/employees/**").hasAnyRole("EMPLOYEE", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/employees", "/employees/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/employees", "/employees/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/employees", "/employees/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/family","/family/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET,"/family","/family/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST,"/department","/department/**").hasRole("ADMIN")

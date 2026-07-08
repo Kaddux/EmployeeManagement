@@ -3,14 +3,16 @@ package com.pm.employeeservice.controller;
 
 import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.dto.LoginResponseDTO;
+import com.pm.employeeservice.dto.SetPasswordRequestDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.pm.employeeservice.mail.VerificationSuccessEvent;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verification_tokens;
+import com.pm.employeeservice.model.verificationTokens;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import com.pm.employeeservice.repository.EmployeeRepository;
@@ -52,15 +54,16 @@ public class AuthController {
                 : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
+
     @GetMapping("/verify")
     @Transactional
     public ResponseEntity<String> verifyEmployeeEmail(@RequestParam("token") String token) {
-        Optional<verification_tokens> tokenOpt = verificationTokenRepository.findByToken(token);
+        Optional<verificationTokens> tokenOpt = verificationTokenRepository.findByToken(token);
 
         if(tokenOpt.isEmpty())
             return ResponseEntity.badRequest().body("Invalid Token");
 
-        verification_tokens verificationToken = tokenOpt.get();
+        verificationTokens verificationToken = tokenOpt.get();
 
         if(verificationToken.isExpired()){
             verificationTokenRepository.delete(verificationToken);
@@ -81,5 +84,22 @@ public class AuthController {
 
         return ResponseEntity.ok().body("Employee has been verified");
 
+    }
+
+    @GetMapping(value = "/set-password", produces = "text/html")
+    public String showSetPasswordPage(@RequestParam("token") String token, Model model) {
+       model.addAttribute(token);
+       return "set-password";
+    }
+
+    @PostMapping("/set-password")
+    @Transactional
+    public ResponseEntity<String> setPassword(@Valid @RequestBody SetPasswordRequestDTO request) {
+        try {
+            String result = authService.setPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
