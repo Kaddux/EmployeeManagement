@@ -32,7 +32,6 @@ A Spring Boot project for managing employees, departments, and family relationsh
 - **Global Exception Handling** — Consistent `ApiErrorResponse` format for validation, conflicts, not-found, and server errors
 - **OpenAPI/Swagger UI** — JWT bearer-auth documented at `/swagger-ui.html`
 - **Docker Support** — Multi-stage Dockerfile and docker-compose setup
-- **Seed Data** — `CommandLineRunner` creates an initial admin user and IT department
 
 ## Project Structure
 
