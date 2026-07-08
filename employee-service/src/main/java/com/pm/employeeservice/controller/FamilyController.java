@@ -3,6 +3,7 @@ package com.pm.employeeservice.controller;
 
 import com.pm.employeeservice.dto.FamilyRequestDTO;
 import com.pm.employeeservice.dto.FamilyResponseDTO;
+import com.pm.employeeservice.mapper.FamilyMapper;
 import lombok.RequiredArgsConstructor;
 import com.pm.employeeservice.model.Family;
 import org.springframework.http.ResponseEntity;
@@ -46,5 +47,12 @@ public class FamilyController {
         FamilyResponseDTO familyResponse = familyService.getUniqueFamily(id);
 
         return ResponseEntity.ok().body(familyResponse);
+    }
+    @PatchMapping("{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<FamilyResponseDTO> patchFamily(UUID id, @Valid @RequestBody FamilyRequestDTO updates){
+        FamilyResponseDTO family = familyService.patchFamily(id,updates);
+
+        return ResponseEntity.ok().body(family);
     }
 }

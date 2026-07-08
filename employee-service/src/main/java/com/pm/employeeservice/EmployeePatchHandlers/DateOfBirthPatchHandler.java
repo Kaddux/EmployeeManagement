@@ -1,4 +1,4 @@
-package com.pm.employeeservice.PatchHandlers;
+package com.pm.employeeservice.EmployeePatchHandlers;
 
 import com.pm.employeeservice.Interface.PatchHandler;
 import com.pm.employeeservice.model.Employee;
@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 
-@Component("DateOfBirth")
+@Component("dateOfBirth")
 public class DateOfBirthPatchHandler implements PatchHandler {
     @Override
     public void apply(Employee employee, Object value) {

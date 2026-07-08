@@ -1,4 +1,4 @@
-package com.pm.employeeservice.PatchHandlers;
+package com.pm.employeeservice.EmployeePatchHandlers;
 
 import com.pm.employeeservice.Interface.PatchHandler;
 import com.pm.employeeservice.model.Employee;

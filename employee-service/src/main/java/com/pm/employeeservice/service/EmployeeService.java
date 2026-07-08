@@ -1,5 +1,6 @@
 package com.pm.employeeservice.service;
 
+import org.springframework.util.ReflectionUtils;
 
 import com.pm.employeeservice.Enum.Role;
 import com.pm.employeeservice.Exceptions.*;
@@ -143,26 +144,24 @@ public class EmployeeService {
     public EmployeeResponseDTO patchEmployee(UUID id, EmployeePatchDTO updates) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + id));
-        if(updates.getName() != null)
-            employee.setName((updates.getName()));
 
-        if(updates.getEmail() != null)
-            employee.setEmail(updates.getEmail());
-
-        if(updates.getAddress() != null)
-            employee.setAddress(updates.getAddress());
-
-        if(updates.getPassword() != null)
-            employee.setPassword(passwordEncoder.encode(updates.getPassword()));
-
-        if(updates.getDepartment_id() != null) {
-            Department department = departmentRepository.findById(Integer.valueOf(updates.getDepartment_id()))
-                    .orElseThrow(() -> new DepartmentNotFoundException("Department Not Found"));
-            employee.setDepartment(department);
-        }
-
-        if(updates.getDateOfBirth() != null)
-            employee.setDate_of_birth(LocalDate.parse(updates.getDateOfBirth()));
+        ReflectionUtils.doWithFields(EmployeePatchDTO.class, field -> {
+            field.setAccessible(true);
+            try {
+                Object value = field.get(updates);
+                if (value != null) {
+                    PatchHandler handler = handlers.get(field.getName());
+                    if (handler != null) {
+                        handler.apply(employee, value);
+                    } else {
+                        log.warn("No patch handler found for field: {}", field.getName());
+                    }
+                }
+            } catch (IllegalAccessException e) {
+                log.error("Error accessing field: {}", field.getName(), e);
+                throw new IllegalAccessException("This resource is inaccessible");
+            }
+        });
 
         Employee updatedEmployee = employeeRepository.save(employee);
         return EmployeeMapper.toDTO(updatedEmployee);

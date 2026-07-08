@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import com.pm.employeeservice.service.DepartmentService;
 
+import java.math.BigInteger;
+
 @RestController
 @RequestMapping("/department")
 @RequiredArgsConstructor
@@ -32,5 +34,13 @@ public class DepartmentController {
          departmentService.deleteDepartment(department_id);
 
         return ResponseEntity.noContent().build();
+    }
+    @PatchMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DepartmentResponseDTO> patchDepartment(BigInteger department_id,
+                                                                 @Valid @RequestBody DepartmentRequestDTO updates){
+        DepartmentResponseDTO response =departmentService.patchDepartment(department_id,updates);
+
+        return ResponseEntity.ok().body(response);
     }
 }

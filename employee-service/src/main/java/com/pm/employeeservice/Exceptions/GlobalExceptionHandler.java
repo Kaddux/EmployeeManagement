@@ -144,4 +144,13 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.badRequest().body(response);
     }
+    @ExceptionHandler(FamilyNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleFamilyNotFoundException(Exception e) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                404,
+                "Family Not Found",
+                "No Family Record found for this Employee"
+        );
+        return ResponseEntity.badRequest().body(response);
+    }
 }
