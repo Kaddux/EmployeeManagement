@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-public class verification_tokens {
+@Table(name = "verification_tokens")
+public class verificationTokens {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private BigInteger id;
@@ -27,7 +28,7 @@ public class verification_tokens {
     @Column
     private LocalDateTime expiryDate;
 
-    @Column
+    @Column(name = "warning_sent")
     private boolean warning_sent;
 
     @Column(name = "created_at",nullable = false,updatable = false)
