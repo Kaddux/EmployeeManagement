@@ -2,11 +2,8 @@ package com.pm.employeeservice.ServiceTests;
 
 import com.pm.employeeservice.Enum.Role;
 import com.pm.employeeservice.Exceptions.EmailAlreadyExistsException;
-import com.pm.employeeservice.Interface.PatchHandler;
 import com.pm.employeeservice.dto.EmployeeCreateDTO;
-import com.pm.employeeservice.dto.EmployeeResponseDTO;
 import com.pm.employeeservice.mail.CreateRegistrationEvent;
-import com.pm.employeeservice.mail.LimitEmailVerificationRequests;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.model.Employee;
 import com.pm.employeeservice.repository.DepartmentRepository;
@@ -43,10 +40,6 @@ public class EmployeeServiceTests {
     DepartmentRepository departmentRepository;
     @Mock
     ApplicationEventPublisher eventPublisher;
-    @Mock
-    LimitEmailVerificationRequests rateLimiter;
-    @Mock
-    Map<String, PatchHandler> handlers;
     @InjectMocks
     EmployeeService employeeService;
 
