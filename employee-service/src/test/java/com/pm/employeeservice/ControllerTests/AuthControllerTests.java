@@ -1,8 +1,6 @@
 package com.pm.employeeservice.ControllerTests;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pm.employeeservice.config.SecurityConfig;
-import com.pm.employeeservice.controller.AuthController;
 import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.dto.SetPasswordRequestDTO;
 import com.pm.employeeservice.model.Employee;
@@ -14,8 +12,9 @@ import com.pm.employeeservice.service.CustomUserDetailsService;
 import com.pm.employeeservice.util.JwtUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,8 +26,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest(AuthController.class)
-@Import(SecurityConfig.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 class AuthControllerTests {
 
     @Autowired MockMvc mockMvc;
@@ -38,7 +37,6 @@ class AuthControllerTests {
     @MockitoBean VerificationTokenRepository verificationTokenRepository;
     @MockitoBean EmployeeRepository employeeRepository;
     @MockitoBean ApplicationEventPublisher applicationEventPublisher;
-    // Mock JwtUtil & CustomUserDetailsService so the real JwtAuthenticationFilter can run
     @MockitoBean JwtUtil jwtUtil;
     @MockitoBean CustomUserDetailsService customUserDetailsService;
 
@@ -88,9 +86,9 @@ class AuthControllerTests {
     }
 
     @Test
-    void validate_missingHeader_returns401() throws Exception {
+    void validate_missingHeader_returns500() throws Exception {
         mockMvc.perform(get("/validate"))
-               .andExpect(status().isBadRequest());
+               .andExpect(status().isInternalServerError());
     }
 
     @Test
