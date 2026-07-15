@@ -2,6 +2,7 @@ package com.pm.employeeservice.model;
 
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,6 +21,7 @@ public class Family {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
+    @NotBlank
     private Employee employee;
 
     @Column
@@ -28,3 +30,4 @@ public class Family {
     @Column
     private String mother_name;
 }
+
