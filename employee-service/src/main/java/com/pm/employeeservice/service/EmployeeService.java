@@ -22,7 +22,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,8 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,14 +40,16 @@ public class EmployeeService {
     private final DepartmentRepository departmentRepository;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final LimitEmailVerificationRequests limitEmailVerificationRequests;
+    private final CachingService cacheService;
 
-    public EmployeeService(ApplicationEventPublisher applicationEventPublisher, EmployeeRepository employeeRepository,
+    public EmployeeService(CachingService cacheService,ApplicationEventPublisher applicationEventPublisher, EmployeeRepository employeeRepository,
                            PasswordEncoder passwordEncoder, DepartmentRepository departmentRepository, LimitEmailVerificationRequests limitEmailVerificationRequests, Map<String, PatchHandler> handlers) {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.departmentRepository = departmentRepository;
         this.applicationEventPublisher = applicationEventPublisher;
         this.limitEmailVerificationRequests = limitEmailVerificationRequests;
+        this.cacheService = cacheService;
         this.handlers = handlers;
     }
 
@@ -122,7 +121,7 @@ public class EmployeeService {
                 employeeUpdateDTO.getEmail(),
                 dept
         );
-
+        cacheService.evict(id);
         Employee updatedEmployee = employeeRepository.save(employee);
         return EmployeeMapper.toDTO(updatedEmployee);
 
@@ -130,20 +129,33 @@ public class EmployeeService {
 
 
     public void deleteEmployee(UUID id) {
+        cacheService.evict(id);
         employeeRepository.deleteById(id);
     }
 
     public EmployeeResponseDTO getUserById(UUID id) {
+        EmployeeResponseDTO cached = cacheService.get(id);
+        if (cached != null) {
+            log.debug("Cache HIT for employee {}", id);
+            return cached;
+        }
+
+        log.debug("Cache MISS for employee {}", id);
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return EmployeeMapper.toDTO(employee);
+        EmployeeResponseDTO dto = EmployeeMapper.toDTO(employee);
+        cacheService.put(id, dto);
+
+        return dto;
 
     }
     final Map<String, PatchHandler> handlers;
     public EmployeeResponseDTO patchEmployee(UUID id, EmployeePatchDTO updates) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + id));
+
+        cacheService.evict(id);
 
         ReflectionUtils.doWithFields(EmployeePatchDTO.class, field -> {
             field.setAccessible(true);
