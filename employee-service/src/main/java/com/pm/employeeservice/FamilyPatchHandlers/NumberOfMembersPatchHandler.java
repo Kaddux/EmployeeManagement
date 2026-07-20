@@ -5,7 +5,7 @@ import com.pm.employeeservice.model.Family;
 import org.springframework.stereotype.Component;
 
 @Component("number_of_members")
-public class NumberOfMembersPatchHandler implements PatchHandler {
+public class NumberOfMembersPatchHandler implements PatchHandler<Family> {
     @Override
     public void apply(Family family, Object value) {
         family.setNumber_of_members(String.valueOf(value));

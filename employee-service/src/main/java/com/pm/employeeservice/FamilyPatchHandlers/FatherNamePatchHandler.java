@@ -5,7 +5,7 @@ import com.pm.employeeservice.model.Family;
 import org.springframework.stereotype.Component;
 
 @Component("father_name")
-public class FatherNamePatchHandler implements PatchHandler {
+public class FatherNamePatchHandler implements PatchHandler<Family> {
     @Override
     public void apply(Family family, Object value) {
         family.setFather_name((String) value);
