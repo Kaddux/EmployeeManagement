@@ -4,7 +4,7 @@ import com.pm.employeeservice.Enum.Role;
 import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.mail.VerificationSuccessEvent;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verificationTokens;
+import com.pm.employeeservice.model.VerificationToken;
 import com.pm.employeeservice.repository.EmployeeRepository;
 import com.pm.employeeservice.repository.VerificationTokenRepository;
 import com.pm.employeeservice.service.AuthService;
@@ -48,8 +48,8 @@ class AuthServiceTests {
         return e;
     }
 
-    private verificationTokens validToken(Employee e) {
-        verificationTokens t = new verificationTokens();
+    private VerificationToken validToken(Employee e) {
+        VerificationToken t = new VerificationToken();
         t.setEmployee(e);
         t.setExpiryDate(LocalDateTime.now().plusDays(1));
         t.setToken("valid-token");
@@ -110,7 +110,7 @@ class AuthServiceTests {
     @Test
     void setPassword_validToken_success() {
         Employee e = disabledEmployee();
-        verificationTokens t = validToken(e);
+        VerificationToken t = validToken(e);
         when(verificationTokenRepository.findByToken("valid-token")).thenReturn(Optional.of(t));
         when(passwordEncoder.encode("new-pass")).thenReturn("encoded-new-pass");
 
@@ -126,7 +126,7 @@ class AuthServiceTests {
     @Test
     void setPassword_expiredToken_throws() {
         Employee e = disabledEmployee();
-        verificationTokens t = validToken(e);
+        VerificationToken t = validToken(e);
         t.setExpiryDate(LocalDateTime.now().minusMinutes(1));
         when(verificationTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(t));
 
@@ -139,7 +139,7 @@ class AuthServiceTests {
     @Test
     void setPassword_alreadyActive_throws() {
         Employee e = enabledEmployee();
-        verificationTokens t = validToken(e);
+        VerificationToken t = validToken(e);
         when(verificationTokenRepository.findByToken("active-token")).thenReturn(Optional.of(t));
 
         assertThrows(IllegalArgumentException.class,

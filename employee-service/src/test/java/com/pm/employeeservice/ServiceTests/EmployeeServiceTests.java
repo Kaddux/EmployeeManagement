@@ -1,13 +1,20 @@
 package com.pm.employeeservice.ServiceTests;
 
 import com.pm.employeeservice.Enum.Role;
+import com.pm.employeeservice.Exceptions.DepartmentNotFoundException;
 import com.pm.employeeservice.Exceptions.EmailAlreadyExistsException;
+import com.pm.employeeservice.Exceptions.EmployeeNotFoundException;
+import com.pm.employeeservice.Interface.PatchHandler;
 import com.pm.employeeservice.dto.EmployeeCreateDTO;
+import com.pm.employeeservice.dto.EmployeeResponseDTO;
+import com.pm.employeeservice.dto.EmployeePatchDTO;
+import com.pm.employeeservice.dto.EmployeeUpdateDTO;
 import com.pm.employeeservice.mail.CreateRegistrationEvent;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.model.Employee;
 import com.pm.employeeservice.repository.DepartmentRepository;
 import com.pm.employeeservice.repository.EmployeeRepository;
+import com.pm.employeeservice.service.CachingService;
 import com.pm.employeeservice.service.EmployeeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +47,10 @@ public class EmployeeServiceTests {
     DepartmentRepository departmentRepository;
     @Mock
     ApplicationEventPublisher eventPublisher;
+    @Mock
+    CachingService cacheService;
+    @Mock
+    Map<String, PatchHandler<Employee>> handlers;
     @InjectMocks
     EmployeeService employeeService;
 
@@ -83,7 +94,7 @@ public class EmployeeServiceTests {
     void createUser_whenDepartmentNotFound_throws() {
         EmployeeCreateDTO dto = validCreateDTO();
         when(departmentRepository.findById(1)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> employeeService.createUser(dto));
+        assertThrows(DepartmentNotFoundException.class, () -> employeeService.createUser(dto));
     }
 
     @Test
@@ -121,6 +132,108 @@ public class EmployeeServiceTests {
         when(employeeRepository.findByEnabledTrue(any(Pageable.class))).thenReturn(page);
         var result = employeeService.getUsers(0, 10);
         assertEquals(1, result.getTotalElements());
+    }
+
+    // ---- getUserById with caching ----
+
+    @Test
+    void getUserById_cacheHit_returnsCachedDTOWithoutDBLookup() {
+        UUID id = UUID.randomUUID();
+        EmployeeResponseDTO cachedDto = new EmployeeResponseDTO();
+        cachedDto.setId(id.toString());
+        cachedDto.setName("Cached Name");
+
+        when(cacheService.get(id)).thenReturn(cachedDto);
+
+        EmployeeResponseDTO result = employeeService.getUserById(id);
+
+        assertEquals("Cached Name", result.getName());
+        verify(cacheService).get(id);
+        verify(cacheService, never()).put(any(), any());
+        verify(employeeRepository, never()).findById(any());
+    }
+
+    @Test
+    void getUserById_cacheMiss_fetchesFromDBAndPutsInCache() {
+        UUID id = UUID.randomUUID();
+        Employee employee = validEmployee();
+        employee.setId(id);
+
+        when(cacheService.get(id)).thenReturn(null);
+        when(employeeRepository.findById(id)).thenReturn(Optional.of(employee));
+
+        EmployeeResponseDTO result = employeeService.getUserById(id);
+
+        assertNotNull(result);
+        verify(cacheService).get(id);
+        verify(employeeRepository).findById(id);
+        verify(cacheService).put(eq(id), any(EmployeeResponseDTO.class));
+    }
+
+    @Test
+    void getUserById_employeeNotFound_throwsException() {
+        UUID id = UUID.randomUUID();
+
+        when(cacheService.get(id)).thenReturn(null);
+        when(employeeRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(EmployeeNotFoundException.class, () -> employeeService.getUserById(id));
+        verify(cacheService, never()).put(any(), any());
+    }
+
+    // ---- updateEmployee evicts cache ----
+
+    @Test
+    void updateEmployee_evictsCacheForUpdatedEmployee() {
+        UUID id = UUID.randomUUID();
+        Employee employee = validEmployee();
+        employee.setId(id);
+        Department dept = new Department();
+        dept.setDepartment_id(1);
+
+        EmployeeUpdateDTO updateDTO = new EmployeeUpdateDTO();
+        updateDTO.setName("Updated Name");
+        updateDTO.setAddress("New Address");
+        updateDTO.setEmail("updated@example.com");
+        updateDTO.setDepartment_id("1");
+        updateDTO.setDateOfBirth("1990-01-01");
+
+        when(employeeRepository.findById(id)).thenReturn(Optional.of(employee));
+        when(employeeRepository.existsByEmailAndIdNot("updated@example.com", id)).thenReturn(false);
+        when(departmentRepository.findById(1)).thenReturn(Optional.of(dept));
+        when(employeeRepository.save(any())).thenReturn(employee);
+
+        employeeService.updateEmployee(id, updateDTO);
+
+        verify(cacheService).evict(id);
+    }
+
+    // ---- deleteEmployee evicts cache ----
+
+    @Test
+    void deleteEmployee_evictsCacheBeforeDelete() {
+        UUID id = UUID.randomUUID();
+
+        employeeService.deleteEmployee(id);
+
+        verify(cacheService).evict(id);
+        verify(employeeRepository).deleteById(id);
+    }
+
+    // ---- patchEmployee evicts cache ----
+
+    @Test
+    void patchEmployee_evictsCacheAfterPatch() {
+        UUID id = UUID.randomUUID();
+        Employee employee = validEmployee();
+        employee.setId(id);
+
+        when(employeeRepository.findById(id)).thenReturn(Optional.of(employee));
+        when(employeeRepository.save(any())).thenReturn(employee);
+
+        employeeService.patchEmployee(id, new EmployeePatchDTO());
+
+        verify(cacheService).evict(id);
     }
 
 }

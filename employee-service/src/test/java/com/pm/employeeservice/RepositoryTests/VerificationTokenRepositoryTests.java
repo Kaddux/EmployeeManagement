@@ -4,7 +4,7 @@ import com.pm.employeeservice.Enum.Role;
 import com.pm.employeeservice.dto.ExpiredTokenProjection;
 import com.pm.employeeservice.model.Department;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verificationTokens;
+import com.pm.employeeservice.model.VerificationToken;
 import com.pm.employeeservice.repository.VerificationTokenRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,8 +47,8 @@ class VerificationTokenRepositoryTests {
         em.persist(employee);
     }
 
-    private verificationTokens createToken(String tokenStr, LocalDateTime expiry, boolean warningSent) {
-        verificationTokens t = new verificationTokens();
+    private VerificationToken createToken(String tokenStr, LocalDateTime expiry, boolean warningSent) {
+        VerificationToken t = new VerificationToken();
         t.setToken(tokenStr);
         t.setEmployee(employee);
         t.setExpiryDate(expiry);
@@ -61,7 +61,7 @@ class VerificationTokenRepositoryTests {
     @Test
     void findByToken_whenExists_returnsToken() {
         createToken("valid-token", LocalDateTime.now().plusDays(1), false);
-        Optional<verificationTokens> found = repository.findByToken("valid-token");
+        Optional<VerificationToken> found = repository.findByToken("valid-token");
         assertTrue(found.isPresent());
     }
 
@@ -96,7 +96,7 @@ class VerificationTokenRepositoryTests {
 
     @Test
     void existsByEmployeeAndCreatedAtAfter_returnsTrueForRecent() {
-        verificationTokens t = createToken("recent", LocalDateTime.now().plusDays(1), false);
+        VerificationToken t = createToken("recent", LocalDateTime.now().plusDays(1), false);
         t.setCreatedAt(Instant.now());
         em.persist(t);
 
@@ -107,7 +107,7 @@ class VerificationTokenRepositoryTests {
 
     @Test
     void existsByEmployeeAndCreatedAtAfter_returnsFalseForOld() {
-        verificationTokens t = createToken("old", LocalDateTime.now().plusDays(1), false);
+        VerificationToken t = createToken("old", LocalDateTime.now().plusDays(1), false);
         t.setCreatedAt(Instant.now().minusSeconds(120));
         em.persist(t);
 

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.dto.SetPasswordRequestDTO;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verificationTokens;
+import com.pm.employeeservice.model.VerificationToken;
 import com.pm.employeeservice.repository.EmployeeRepository;
 import com.pm.employeeservice.repository.VerificationTokenRepository;
 import com.pm.employeeservice.service.AuthService;
@@ -110,7 +110,7 @@ class AuthControllerTests {
     void verifyEmail_validToken_returnsOk() throws Exception {
         Employee emp = new Employee();
         emp.setEnabled(true);
-        verificationTokens vt = new verificationTokens();
+        VerificationToken vt = new VerificationToken();
         vt.setEmployee(emp);
         vt.setExpiryDate(java.time.LocalDateTime.now().plusDays(1));
         when(verificationTokenRepository.findByToken("valid-token")).thenReturn(Optional.of(vt));
@@ -130,7 +130,7 @@ class AuthControllerTests {
     void verifyEmail_expiredToken_returns400() throws Exception {
         Employee emp = new Employee();
         emp.setEnabled(false);
-        verificationTokens vt = new verificationTokens();
+        VerificationToken vt = new VerificationToken();
         vt.setEmployee(emp);
         vt.setExpiryDate(java.time.LocalDateTime.now().minusMinutes(1));
         when(verificationTokenRepository.findByToken("expired-token")).thenReturn(Optional.of(vt));
