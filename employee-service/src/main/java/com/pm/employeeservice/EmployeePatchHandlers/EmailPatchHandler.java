@@ -5,7 +5,8 @@ import com.pm.employeeservice.model.Employee;
 import org.springframework.stereotype.Component;
 
 @Component("email")
-public class EmailPatchHandler implements PatchHandler {
+public class EmailPatchHandler implements PatchHandler<Employee> {
+    @Override
     public void apply(Employee employee, Object value){
         employee.setEmail((String) value);
     }

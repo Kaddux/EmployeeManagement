@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 
 @Component("dateOfBirth")
-public class DateOfBirthPatchHandler implements PatchHandler {
+public class DateOfBirthPatchHandler implements PatchHandler<Employee> {
     @Override
     public void apply(Employee employee, Object value) {
         employee.setDate_of_birth(LocalDate.parse((String) value));

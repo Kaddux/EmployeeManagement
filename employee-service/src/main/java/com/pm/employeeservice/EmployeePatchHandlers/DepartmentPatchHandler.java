@@ -8,7 +8,7 @@ import com.pm.employeeservice.repository.DepartmentRepository;
 import org.springframework.stereotype.Component;
 
 @Component("department_id")
-public class DepartmentPatchHandler implements PatchHandler {
+public class DepartmentPatchHandler implements PatchHandler<Employee> {
 
     private final DepartmentRepository departmentRepository;
 

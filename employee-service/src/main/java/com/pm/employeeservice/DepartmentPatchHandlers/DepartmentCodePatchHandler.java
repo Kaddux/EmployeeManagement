@@ -5,7 +5,7 @@ import com.pm.employeeservice.model.Department;
 import org.springframework.stereotype.Component;
 
 @Component("department_code")
-public class DepartmentCodePatchHandler implements PatchHandler {
+public class DepartmentCodePatchHandler implements PatchHandler<Department> {
     @Override
     public void apply(Department department, Object value) {
         department.setDepartment_code((String) value);

@@ -6,7 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component("password")
-public class PasswordPatchHandler implements PatchHandler {
+public class PasswordPatchHandler implements PatchHandler<Employee> {
 
     private final PasswordEncoder passwordEncoder;
 

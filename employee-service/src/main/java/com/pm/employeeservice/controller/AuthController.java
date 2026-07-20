@@ -4,11 +4,11 @@ package com.pm.employeeservice.controller;
 import com.pm.employeeservice.dto.LoginRequestDTO;
 import com.pm.employeeservice.dto.LoginResponseDTO;
 import com.pm.employeeservice.dto.SetPasswordRequestDTO;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.pm.employeeservice.mail.VerificationSuccessEvent;
 import com.pm.employeeservice.model.Employee;
-import com.pm.employeeservice.model.verificationTokens;
+import com.pm.employeeservice.model.VerificationToken;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,15 +31,13 @@ public class AuthController {
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @PostMapping("/login")
-    public Object login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
         Optional<String> tokenOptional = authService.authenticate(loginRequestDTO);
 
-
         if(tokenOptional.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).<LoginResponseDTO>build();
         }
         String token = tokenOptional.get();
-
 
         return ResponseEntity.ok(new LoginResponseDTO(token));
     }
@@ -58,12 +56,12 @@ public class AuthController {
     @GetMapping("/verify")
     @Transactional
     public ResponseEntity<String> verifyEmployeeEmail(@RequestParam("token") String token) {
-        Optional<verificationTokens> tokenOpt = verificationTokenRepository.findByToken(token);
+        Optional<VerificationToken> tokenOpt = verificationTokenRepository.findByToken(token);
 
         if(tokenOpt.isEmpty())
             return ResponseEntity.badRequest().body("Invalid Token");
 
-        verificationTokens verificationToken = tokenOpt.get();
+        VerificationToken verificationToken = tokenOpt.get();
 
         if(verificationToken.isExpired()){
             verificationTokenRepository.delete(verificationToken);
